@@ -16,6 +16,7 @@ Available completely **free of charge, public, and open-source**.
 <p align="center">
   <img src="assets/screenshot.png" alt="Today Budget Screen Preview" width="360" style="border-radius: 20px; box-shadow: 0px 8px 30px rgba(121, 58, 201, 0.2);" />
 </p>
+
 ---
 
 ## ✨ Key Features
