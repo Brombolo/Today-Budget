@@ -51,6 +51,9 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
     private val _userName = MutableStateFlow("Marco")
     val userName = _userName.asStateFlow()
 
+    private val _onboardingCompleted = MutableStateFlow(true)
+    val onboardingCompleted = _onboardingCompleted.asStateFlow()
+
     // Main combined UI State for budget calculations
     val budgetState: StateFlow<BudgetState> = combine(
         expenses,
@@ -89,7 +92,43 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
             _pushWeeklyMonthlyEnabled.value = repository.getSetting("push_weekly_monthly_enabled", "false").toBoolean()
             _pushBudgetConfirmEnabled.value = repository.getSetting("push_budget_confirm_enabled", "false").toBoolean()
             _userName.value = repository.getSetting("user_name", "Marco")
+            _onboardingCompleted.value = repository.getSetting("onboarding_completed", "false").toBoolean()
         }
+    }
+
+    // Onboarding
+    fun completeOnboarding(
+        userNameStr: String,
+        budget: Double,
+        currency: String,
+        startDay: Int,
+        startHour: Int
+    ) {
+        viewModelScope.launch {
+            repository.saveSetting("user_name", userNameStr)
+            repository.saveSetting("monthly_budget", budget.toString())
+            repository.saveSetting("currency_symbol", currency)
+            repository.saveSetting("billing_start_day", startDay.toString())
+            repository.saveSetting("day_start_hour", startHour.toString())
+            repository.saveSetting("onboarding_completed", "true")
+
+            _userName.value = userNameStr
+            _monthlyBudget.value = budget
+            _currencySymbol.value = currency
+            _billingStartDay.value = startDay
+            _dayStartHour.value = startHour
+            _onboardingCompleted.value = true
+        }
+    }
+
+    fun skipOnboarding() {
+        completeOnboarding(
+            userNameStr = "User",
+            budget = 0.0,
+            currency = "€",
+            startDay = 1,
+            startHour = 0
+        )
     }
 
     // Settings Updates
