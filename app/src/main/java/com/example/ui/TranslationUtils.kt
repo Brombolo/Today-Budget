@@ -3,10 +3,12 @@ package com.example.ui
 import java.util.Locale
 
 object Trans {
-    // Dynamic translations dictionary
-    // We map the native Italian strings to their English, French, and Spanish counterpart.
-    // If the locale is "it", it returns the original. Otherwise, it searches for translated text.
-    // Default fallback is English ("en").
+    private var forcedLocale: String? = null
+
+    fun setForcedLocale(langCode: String?) {
+        forcedLocale = if (langCode == "system") null else langCode
+    }
+
     private val translations = mapOf(
         "Today Budget" to mapOf(
             "en" to "Today Budget",
@@ -827,7 +829,7 @@ object Trans {
     )
 
     fun translate(key: String): String {
-        val locale = Locale.getDefault().language
+        val locale = forcedLocale ?: Locale.getDefault().language
         val langMap = translations[key] ?: return key
         return langMap[locale] ?: langMap["en"] ?: key
     }

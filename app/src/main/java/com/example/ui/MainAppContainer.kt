@@ -25,7 +25,12 @@ fun MainAppContainer(
     val onboardingCompleted by viewModel.onboardingCompleted.collectAsState()
     var selectedTab by remember { mutableIntStateOf(0) }
 
-    if (!onboardingCompleted) {
+    if (onboardingCompleted == null) {
+        // Still loading settings, show a simple splash/empty or nothing
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
+            CircularProgressIndicator(color = SweetPrimary)
+        }
+    } else if (onboardingCompleted == false) {
         OnboardingScreen(viewModel = viewModel)
     } else {
         Scaffold(

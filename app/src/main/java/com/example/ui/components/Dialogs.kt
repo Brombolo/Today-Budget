@@ -86,10 +86,19 @@ fun AddEditExpenseDialog(
                 // Description Field
                 OutlinedTextField(
                     value = description,
-                    onValueChange = { description = it },
+                    onValueChange = { 
+                        if (it.length <= 22) description = it 
+                    },
                     label = { Text("Nota / Descrizione") },
                     placeholder = { Text("es. Spesa settimanale") },
                     singleLine = true,
+                    supportingText = {
+                        Text(
+                            text = "${description.length} / 22",
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.End
+                        )
+                    },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = SweetPrimary,
                         unfocusedBorderColor = SweetCardGlow
@@ -290,10 +299,19 @@ fun AdjustBudgetDialog(
                 // Note
                 OutlinedTextField(
                     value = note,
-                    onValueChange = { note = it },
+                    onValueChange = { 
+                        if (it.length <= 22) note = it 
+                    },
                     label = { Text("Nota / Motivo") },
                     placeholder = { Text("es. Rimborso, Regalo, etc.") },
                     singleLine = true,
+                    supportingText = {
+                        Text(
+                            text = "${note.length} / 22",
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.End
+                        )
+                    },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = SweetPrimary,
                         unfocusedBorderColor = SweetCardGlow

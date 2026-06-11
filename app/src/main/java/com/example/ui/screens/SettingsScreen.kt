@@ -4,6 +4,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -14,10 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -59,6 +57,10 @@ fun SettingsScreen(
 
     val userNameVal by viewModel.userName.collectAsState()
     var userName by remember(userNameVal) { mutableStateOf(userNameVal) }
+
+    val appLangVal by viewModel.appLanguage.collectAsState()
+    var appLang by remember(appLangVal) { mutableStateOf(appLangVal) }
+    var langExpanded by remember { mutableStateOf(false) }
 
     // Internal states synced to preferences on init / updates
     var budgetStr by remember(budgetVal) { mutableStateOf(budgetVal.formatCurrency()) }
@@ -149,6 +151,60 @@ fun SettingsScreen(
                         .fillMaxWidth()
                         .testTag("settings_username_input")
                 )
+
+                Divider(color = SweetCardGlow)
+
+                Text(
+                    text = "Lingua Applicazione".loc(),
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                    color = SweetTextDark
+                )
+
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = when(appLang) {
+                            "it" -> "Italiano"
+                            "en" -> "English"
+                            "fr" -> "Français"
+                            "es" -> "Español"
+                            else -> "Sistema"
+                        },
+                        onValueChange = { },
+                        readOnly = true,
+                        label = { Text("Seleziona Lingua".loc()) },
+                        modifier = Modifier.fillMaxWidth(),
+                        trailingIcon = {
+                            IconButton(onClick = { langExpanded = true }) {
+                                Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                            }
+                        },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = SweetPrimary,
+                            unfocusedBorderColor = SweetCardGlow
+                        )
+                    )
+                    DropdownMenu(
+                        expanded = langExpanded,
+                        onDismissRequest = { langExpanded = false },
+                        modifier = Modifier.fillMaxWidth(0.8f)
+                    ) {
+                        mapOf(
+                            "system" to "Sistema",
+                            "it" to "Italiano",
+                            "en" to "English",
+                            "fr" to "Français",
+                            "es" to "Español"
+                        ).forEach { (code, label) ->
+                            DropdownMenuItem(
+                                text = { Text(label) },
+                                onClick = {
+                                    appLang = code
+                                    langExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
             }
         }
 
@@ -698,6 +754,7 @@ fun SettingsScreen(
                     pushWeeklyMonthly = pushWeeklyMonthlyEnabled,
                     pushBudgetConfirm = pushBudgetConfirmEnabled
                 )
+                viewModel.updateLanguage(appLang)
                 isSavedVisible = true
                 Toast.makeText(context, "Impostazioni salvate!".loc(), Toast.LENGTH_SHORT).show()
             },
@@ -712,6 +769,19 @@ fun SettingsScreen(
             Icon(imageVector = Icons.Default.Settings, contentDescription = "Applica")
             Spacer(modifier = Modifier.width(6.dp))
             Text("Salva Impostazioni".loc(), fontSize = 14.sp, fontWeight = FontWeight.Black)
+        }
+
+        // Reset Onboarding Button
+        Button(
+            onClick = {
+                viewModel.resetOnboarding()
+                Toast.makeText(context, "Onboarding resettato. Riavvia l'app o torna alla home.", Toast.LENGTH_LONG).show()
+            },
+            colors = ButtonDefaults.buttonColors(containerColor = SweetBackground),
+            modifier = Modifier.fillMaxWidth(),
+            border = BorderStroke(1.dp, SweetCardGlow)
+        ) {
+            Text("Ripristina configurazione iniziale (Onboarding)".loc(), color = SweetTextLight, fontSize = 12.sp)
         }
 
         Spacer(modifier = Modifier.height(24.dp))

@@ -1,23 +1,30 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.SweetPrimary
+import com.example.ui.theme.SweetPrimaryLight
+import com.example.ui.theme.SweetBackground
 import com.example.ui.theme.SweetTextDark
 import com.example.viewmodel.BudgetViewModel
 import com.example.ui.parseCurrency
@@ -36,8 +43,6 @@ fun OnboardingScreen(
 
     var currencyExpanded by remember { mutableStateOf(false) }
     var startDayExpanded by remember { mutableStateOf(false) }
-
-    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -147,31 +152,53 @@ fun OnboardingScreen(
                 }
             }
 
-            // Start Hour Button
-            OutlinedButton(
-                onClick = {
-                    android.app.TimePickerDialog(
-                        context,
-                        { _, hour, _ ->
-                            startHour = hour.coerceIn(0, 11)
-                        },
-                        startHour,
-                        0,
-                        true
-                    ).show()
-                },
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                shape = RoundedCornerShape(4.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = SweetTextDark)
+            // Start Hour Selection (Refined to Hours Only)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(SweetBackground)
+                    .border(1.dp, SweetPrimary.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                Text(
+                    "Orario inizio giornata",
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                    color = SweetTextDark
+                )
+                
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
-                    Text("Orario inizio giornata", style = MaterialTheme.typography.bodyLarge)
-                    Text(String.format(Locale.ITALY, "%02d:00", startHour), fontWeight = FontWeight.Bold)
+                    IconButton(
+                        onClick = { if (startHour > 0) startHour-- },
+                        modifier = Modifier.clip(CircleShape).background(SweetPrimaryLight)
+                    ) {
+                        Icon(imageVector = Icons.Default.Remove, contentDescription = null, tint = SweetPrimary)
+                    }
+
+                    Text(
+                        text = String.format(Locale.ITALY, "%02d:00", startHour),
+                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Black),
+                        color = SweetPrimary
+                    )
+
+                    IconButton(
+                        onClick = { if (startHour < 11) startHour++ },
+                        modifier = Modifier.clip(CircleShape).background(SweetPrimaryLight)
+                    ) {
+                        Icon(imageVector = Icons.Default.Add, contentDescription = null, tint = SweetPrimary)
+                    }
                 }
+                
+                Text(
+                    "Seleziona solo l'ora (max 11:00)",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = SweetTextDark.copy(alpha = 0.5f)
+                )
             }
 
             Spacer(modifier = Modifier.height(24.dp))

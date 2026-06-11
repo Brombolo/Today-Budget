@@ -51,8 +51,14 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
     private val _userName = MutableStateFlow("User")
     val userName = _userName.asStateFlow()
 
-    private val _onboardingCompleted = MutableStateFlow(false)
+    private val _onboardingCompleted = MutableStateFlow<Boolean?>(null)
     val onboardingCompleted = _onboardingCompleted.asStateFlow()
+
+    private val _appLanguage = MutableStateFlow("system")
+    val appLanguage = _appLanguage.asStateFlow()
+
+    private val _pinnedCategoryIds = MutableStateFlow<List<Int>>(emptyList())
+    val pinnedCategoryIds = _pinnedCategoryIds.asStateFlow()
 
     // Main combined UI State for budget calculations
     val budgetState: StateFlow<BudgetState> = combine(
@@ -93,6 +99,13 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
             _pushBudgetConfirmEnabled.value = repository.getSetting("push_budget_confirm_enabled", "false").toBoolean()
             _userName.value = repository.getSetting("user_name", "User")
             _onboardingCompleted.value = repository.getSetting("onboarding_completed", "false").toBoolean()
+
+            val lang = repository.getSetting("app_language", "system")
+            _appLanguage.value = lang
+            com.example.ui.Trans.setForcedLocale(lang)
+
+            val pinnedStr = repository.getSetting("pinned_categories", "")
+            _pinnedCategoryIds.value = if (pinnedStr.isEmpty()) emptyList() else pinnedStr.split(",").mapNotNull { it.toIntOrNull() }
         }
     }
 
@@ -129,6 +142,21 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
             startDay = 1,
             startHour = 0
         )
+    }
+
+    fun resetOnboarding() {
+        viewModelScope.launch {
+            repository.saveSetting("onboarding_completed", "false")
+            _onboardingCompleted.value = false
+        }
+    }
+
+    fun updateLanguage(lang: String) {
+        viewModelScope.launch {
+            repository.saveSetting("app_language", lang)
+            _appLanguage.value = lang
+            com.example.ui.Trans.setForcedLocale(lang)
+        }
     }
 
     // Settings Updates
@@ -209,6 +237,27 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
     fun deleteCategory(category: Category) {
         viewModelScope.launch {
             repository.deleteCategory(category)
+            // Remove from pinned if deleted
+            if (_pinnedCategoryIds.value.contains(category.id)) {
+                val newList = _pinnedCategoryIds.value.filter { it != category.id }
+                _pinnedCategoryIds.value = newList
+                repository.saveSetting("pinned_categories", newList.joinToString(","))
+            }
+        }
+    }
+
+    fun togglePinCategory(categoryId: Int) {
+        viewModelScope.launch {
+            val current = _pinnedCategoryIds.value.toMutableList()
+            if (current.contains(categoryId)) {
+                current.remove(categoryId)
+            } else {
+                if (current.size < 4) {
+                    current.add(categoryId)
+                }
+            }
+            _pinnedCategoryIds.value = current
+            repository.saveSetting("pinned_categories", current.joinToString(","))
         }
     }
 

@@ -11,6 +11,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,9 +20,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.widget.Toast
 import com.example.data.Category
 import com.example.viewmodel.BudgetViewModel
 import com.example.ui.components.AddEditCategoryDialog
@@ -32,7 +36,9 @@ fun CategoriesScreen(
     viewModel: BudgetViewModel,
     modifier: Modifier = Modifier
 ) {
-    val categories by viewModel.categories.collectAsState(initial = emptyList())
+    val categories: List<Category> by viewModel.categories.collectAsState(initial = emptyList())
+    val pinnedIds by viewModel.pinnedCategoryIds.collectAsState()
+    val context = LocalContext.current
 
     var showAddDialog by remember { mutableStateOf(false) }
     var selectedCategoryForEdit by remember { mutableStateOf<Category?>(null) }
@@ -67,7 +73,7 @@ fun CategoriesScreen(
 
             IconButton(
                 onClick = {
-                    if (categories.size >= 10) {
+                    if (categories.size >= 12) {
                         showLimitAlert = true
                     } else {
                         showAddDialog = true
@@ -116,15 +122,46 @@ fun CategoriesScreen(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center
                         ) {
-                            // Category Emoji Card
+                            val isPinned = pinnedIds.contains(cat.id)
+                            
+                            // Category Emoji Card with Pin Overlay
                             Box(
                                 modifier = Modifier
-                                    .size(54.dp)
-                                    .clip(CircleShape)
-                                    .background(SweetPrimaryLight),
+                                    .size(54.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(text = cat.icon, fontSize = 28.sp)
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clip(CircleShape)
+                                        .background(SweetPrimaryLight),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(text = cat.icon, fontSize = 28.sp)
+                                }
+                                
+                                IconButton(
+                                    onClick = {
+                                        if (!isPinned && pinnedIds.size >= 4) {
+                                            Toast.makeText(context, "Puoi pinnare al massimo 4 categorie", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            viewModel.togglePinCategory(cat.id)
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .align(Alignment.TopEnd)
+                                        .offset(x = 4.dp, y = (-4).dp)
+                                        .clip(CircleShape)
+                                        .background(if (isPinned) SweetPrimary else SweetCardGlow)
+                                ) {
+                                    Icon(
+                                        imageVector = if (isPinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
+                                        contentDescription = "Pin",
+                                        tint = if (isPinned) Color.White else SweetTextLight,
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                }
                             }
 
                             Spacer(modifier = Modifier.height(10.dp))
@@ -191,7 +228,7 @@ fun CategoriesScreen(
             title = { Text("Limite Categorie".loc(), fontWeight = FontWeight.Bold, color = SweetTextDark) },
             text = {
                 Text(
-                    "Puoi impostare al massimo 10 categorie per mantenere l'interfaccia pulita e leggibile. Se hai bisogno di una nuova categoria, modifica o elimina una di quelle esistenti.".loc(),
+                    "Puoi impostare al massimo 12 categorie per mantenere l'interfaccia pulita e leggibile. Se hai bisogno di una nuova categoria, modifica o elimina una di quelle esistenti.".loc(),
                     color = SweetTextLight
                 )
             },
