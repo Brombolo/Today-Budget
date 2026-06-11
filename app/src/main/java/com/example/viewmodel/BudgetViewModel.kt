@@ -21,7 +21,7 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
     val adjustments = repository.adjustmentsFlow
 
     // Settings States to trigger recalculations reactively
-    private val _monthlyBudget = MutableStateFlow(1000.0)
+    private val _monthlyBudget = MutableStateFlow(0.0)
     val monthlyBudget = _monthlyBudget.asStateFlow()
 
     private val _billingStartDay = MutableStateFlow(1)
@@ -48,10 +48,10 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
     private val _pushBudgetConfirmEnabled = MutableStateFlow(false)
     val pushBudgetConfirmEnabled = _pushBudgetConfirmEnabled.asStateFlow()
 
-    private val _userName = MutableStateFlow("Marco")
+    private val _userName = MutableStateFlow("User")
     val userName = _userName.asStateFlow()
 
-    private val _onboardingCompleted = MutableStateFlow(true)
+    private val _onboardingCompleted = MutableStateFlow(false)
     val onboardingCompleted = _onboardingCompleted.asStateFlow()
 
     // Main combined UI State for budget calculations
@@ -81,7 +81,7 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
             repository.ensureDefaultCategories()
 
             // Load initial settings synchronously of viewmodel starting
-            _monthlyBudget.value = repository.getSetting("monthly_budget", "1000.0").toDoubleOrNull() ?: 1000.0
+            _monthlyBudget.value = repository.getSetting("monthly_budget", "0.0").toDoubleOrNull() ?: 0.0
             _billingStartDay.value = repository.getSetting("billing_start_day", "1").toIntOrNull() ?: 1
             _dayStartHour.value = repository.getSetting("day_start_hour", "0").toIntOrNull() ?: 0
             _carryOverEnabled.value = repository.getSetting("carry_over_enabled", "false").toBoolean()
@@ -91,7 +91,7 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
             _pushDailyTime.value = repository.getSetting("push_daily_time", "20:00")
             _pushWeeklyMonthlyEnabled.value = repository.getSetting("push_weekly_monthly_enabled", "false").toBoolean()
             _pushBudgetConfirmEnabled.value = repository.getSetting("push_budget_confirm_enabled", "false").toBoolean()
-            _userName.value = repository.getSetting("user_name", "Marco")
+            _userName.value = repository.getSetting("user_name", "User")
             _onboardingCompleted.value = repository.getSetting("onboarding_completed", "false").toBoolean()
         }
     }

@@ -840,8 +840,30 @@ fun String.loc(): String {
 fun String.loc(vararg args: Any): String {
     val translated = Trans.translate(this)
     return try {
-        String.format(translated, *args)
+        // Apply Italian-style formatting (comma as decimal separator) for doubles in args
+        val formattedArgs = args.map { arg ->
+            if (arg is Double) {
+                String.format(Locale.ITALY, "%.2f", arg)
+            } else {
+                arg
+            }
+        }.toTypedArray()
+        String.format(translated, *formattedArgs)
     } catch (e: Exception) {
         translated
     }
+}
+
+/**
+ * Formats a double value with two decimal places and a comma as separator.
+ */
+fun Double.formatCurrency(): String {
+    return String.format(Locale.ITALY, "%.2f", this)
+}
+
+/**
+ * Parses a string to a double, accepting both dot and comma as decimal separators.
+ */
+fun String.parseCurrency(): Double? {
+    return this.replace(",", ".").toDoubleOrNull()
 }

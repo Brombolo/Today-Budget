@@ -35,6 +35,8 @@ import androidx.compose.ui.unit.sp
 import com.example.ui.theme.*
 import com.example.viewmodel.BudgetViewModel
 import com.example.ui.loc
+import com.example.ui.parseCurrency
+import com.example.ui.formatCurrency
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,8 +57,11 @@ fun SettingsScreen(
     val pushWeeklyMonthlyVal by viewModel.pushWeeklyMonthlyEnabled.collectAsState()
     val pushBudgetConfirmVal by viewModel.pushBudgetConfirmEnabled.collectAsState()
 
+    val userNameVal by viewModel.userName.collectAsState()
+    var userName by remember(userNameVal) { mutableStateOf(userNameVal) }
+
     // Internal states synced to preferences on init / updates
-    var budgetStr by remember(budgetVal) { mutableStateOf(budgetVal.toString()) }
+    var budgetStr by remember(budgetVal) { mutableStateOf(budgetVal.formatCurrency()) }
     var startDay by remember(startDayVal) { mutableStateOf(startDayVal) }
     var startHour by remember(startHourVal) { mutableStateOf(startHourVal) }
     var carryOverEnabled by remember(carryOverVal) { mutableStateOf(carryOverVal) }
@@ -66,9 +71,6 @@ fun SettingsScreen(
     var pushDailyTime by remember(pushDailyTimeVal) { mutableStateOf(pushDailyTimeVal) }
     var pushWeeklyMonthlyEnabled by remember(pushWeeklyMonthlyVal) { mutableStateOf(pushWeeklyMonthlyVal) }
     var pushBudgetConfirmEnabled by remember(pushBudgetConfirmVal) { mutableStateOf(pushBudgetConfirmVal) }
-
-    val userNameVal by viewModel.userName.collectAsState()
-    var userName by remember(userNameVal) { mutableStateOf(userNameVal) }
 
     var isSavedVisible by remember { mutableStateOf(false) }
 
@@ -173,12 +175,12 @@ fun SettingsScreen(
                 OutlinedTextField(
                     value = budgetStr,
                     onValueChange = { 
-                        if (it.isEmpty() || it.toDoubleOrNull() != null || it.endsWith(".")) {
+                        if (it.isEmpty() || it.replace(",", ".").toDoubleOrNull() != null || it.endsWith(".") || it.endsWith(",")) {
                             budgetStr = it 
                         }
                     },
                     label = { Text("Budget Mensile Predefinito (%s)".loc(currency)) },
-                    placeholder = { Text("1000.00") },
+                    placeholder = { Text("0,00") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
@@ -279,7 +281,9 @@ fun SettingsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(
-                        onClick = { if (startDay > 1) startDay-- },
+                        onClick = { 
+                            startDay = if (startDay > 1) startDay - 1 else 31 
+                        },
                         modifier = Modifier
                             .clip(CircleShape)
                             .background(SweetPrimaryLight)
@@ -288,7 +292,7 @@ fun SettingsScreen(
                     }
 
                     Text(
-                        text = "Giorno %d di ogni mese".loc(startDay),
+                        text = "Giorno $startDay",
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Black),
                         color = SweetTextDark,
                         modifier = Modifier
@@ -297,7 +301,9 @@ fun SettingsScreen(
                     )
 
                     IconButton(
-                        onClick = { if (startDay < 31) startDay++ },
+                        onClick = { 
+                            startDay = if (startDay < 31) startDay + 1 else 1 
+                        },
                         modifier = Modifier
                             .clip(CircleShape)
                             .background(SweetPrimaryLight)
@@ -378,7 +384,7 @@ fun SettingsScreen(
                     )
 
                     IconButton(
-                        onClick = { if (startHour < 23) startHour++ },
+                        onClick = { if (startHour < 11) startHour++ },
                         modifier = Modifier
                             .clip(CircleShape)
                             .background(SweetPrimaryLight)
@@ -648,50 +654,6 @@ fun SettingsScreen(
                     }
 
                     Spacer(modifier = Modifier.height(4.dp))
-
-                    // Test Triggers
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(SweetPrimaryLight)
-                            .padding(10.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Visualizza Test:".loc(),
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Black),
-                            color = SweetPrimary,
-                            modifier = Modifier.padding(end = 4.dp)
-                        )
-
-                        Button(
-                            onClick = {
-                                com.example.NotificationScheduler.triggerWeeklyMonthlyNotification(context)
-                            },
-                            enabled = isNotificationPermissionGranted,
-                            colors = ButtonDefaults.buttonColors(containerColor = SweetPrimary),
-                            shape = RoundedCornerShape(8.dp),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text("Notifica Spese".loc(), color = Color.White, fontSize = 10.sp)
-                        }
-
-                        Button(
-                            onClick = {
-                                com.example.NotificationScheduler.triggerBudgetConfirmNotification(context)
-                            },
-                            enabled = isNotificationPermissionGranted,
-                            colors = ButtonDefaults.buttonColors(containerColor = SweetPrimary),
-                            shape = RoundedCornerShape(8.dp),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text("Mese Nuovo".loc(), color = Color.White, fontSize = 10.sp)
-                        }
-                    }
                 }
             }
         }
@@ -717,8 +679,8 @@ fun SettingsScreen(
         // --- CORE SAVE BUTTON ---
         Button(
             onClick = {
-                val budget = budgetStr.toDoubleOrNull()
-                if (budget == null || budget <= 0.0) {
+                val budget = budgetStr.parseCurrency()
+                if (budget == null || budget < 0.0) {
                     Toast.makeText(context, "Inserisci un budget mensile valido.".loc(), Toast.LENGTH_SHORT).show()
                     return@Button
                 }

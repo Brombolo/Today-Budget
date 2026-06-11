@@ -21,6 +21,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
@@ -38,6 +39,7 @@ import com.example.ui.components.TrendLineChart
 import com.example.ui.theme.*
 import com.example.viewmodel.BudgetViewModel
 import com.example.ui.loc
+import com.example.ui.formatCurrency
 import java.time.format.DateTimeFormatter
 import java.util.*
 
@@ -75,7 +77,6 @@ fun StatsScreen(
     val startHourVal by viewModel.dayStartHour.collectAsState()
 
     var selectedCategoryIdForTrend by remember { mutableStateOf<Int?>(null) } // null = overall, non-null = single category
-    var isDemoMode by remember { mutableStateOf(false) }
 
     // Dynamically calculate actual history trend points from the DB
     val actualTrendPoints = remember(expenses, adjustments, budgetState, budgetValue, startDayVal, startHourVal) {
@@ -126,19 +127,10 @@ fun StatsScreen(
     }
 
     // Toggle demo data if database is empty to show how visuals appear.
-    val hasData = expenses.isNotEmpty()
+    val monthsWithData = actualTrendPoints.count { it.amount > 0 || it.savings != budgetValue }
+    val isHistoricalTrendAvailable = monthsWithData >= 1 
 
-    val trendPoints = if (isDemoMode || !hasData) {
-        // High quality design mockup data for first install
-        listOf(
-            MonthlyTrendPoint("Mar", 680.0, 320.0, mapOf(1 to 350.0, 2 to 180.0, 3 to 100.0, 4 to 50.0)),
-            MonthlyTrendPoint("Apr", 810.0, 190.0, mapOf(1 to 390.0, 2 to 210.0, 3 to 120.0, 4 to 90.0)),
-            MonthlyTrendPoint("Mag", 520.0, 480.0, mapOf(1 to 280.0, 2 to 140.0, 3 to 60.0, 4 to 40.0)),
-            MonthlyTrendPoint("Giu", 750.0, 250.0, mapOf(1 to 320.0, 2 to 200.0, 3 to 150.0, 4 to 80.0))
-        )
-    } else {
-        actualTrendPoints
-    }
+    val trendPoints = actualTrendPoints
 
     // Category summary statistics for CURRENT month
     val currentMonthExpenses = remember(expenses, budgetState) {
@@ -147,15 +139,9 @@ fun StatsScreen(
         expenses.filter { it.timestamp in startTs until endTs }
     }
 
-    val categoryDistribution = remember(currentMonthExpenses, categories, isDemoMode) {
-        if (isDemoMode || currentMonthExpenses.isEmpty()) {
-            // Mock categories distribution
-            listOf(
-                ChartCategoryData(1, "Cibo", "🍔", 320.0, ChartColors[0]),
-                ChartCategoryData(2, "Casa", "🏠", 200.0, ChartColors[2]),
-                ChartCategoryData(3, "Trasporti", "🚗", 150.0, ChartColors[3]),
-                ChartCategoryData(4, "Tabacchi", "🚬", 80.0, ChartColors[1])
-            )
+    val categoryDistribution = remember(currentMonthExpenses, categories) {
+        if (currentMonthExpenses.isEmpty()) {
+            emptyList<ChartCategoryData>()
         } else {
             val grouped = currentMonthExpenses.groupBy { it.categoryId }
             grouped.entries.mapIndexed { idx, entry ->
@@ -202,24 +188,6 @@ fun StatsScreen(
                     color = SweetTextLight
                 )
             }
-
-            // Demo Mode toggle switch (beautifully customized)
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(SweetPrimaryLight)
-                    .clickable { isDemoMode = !isDemoMode }
-                    .padding(horizontal = 8.dp, vertical = 6.dp)
-            ) {
-                Text(
-                    text = if (isDemoMode) "Dati Demo Attivi".loc() else "Attiva Demo".loc(),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = SweetPrimary
-                )
-            }
         }
 
         // --- PREVIOUS MONTH SAVINGS CARD ---
@@ -252,7 +220,7 @@ fun StatsScreen(
                         color = SweetTextLight
                     )
                     Text(
-                        text = String.format("€%.2f", budgetState.previousMonthBalance),
+                        text = String.format("%s %s", currency, budgetState.previousMonthBalance.formatCurrency()),
                         style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Black),
                         color = if (budgetState.previousMonthBalance >= 0) PastelMint else PastelRose,
                         modifier = Modifier.testTag("prev_month_savings")
@@ -262,7 +230,7 @@ fun StatsScreen(
         }
 
         // Empty Status Reminder
-        if (!hasData && !isDemoMode) {
+        if (!isHistoricalTrendAvailable) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -280,7 +248,7 @@ fun StatsScreen(
                     modifier = Modifier.size(20.dp)
                 )
                 Text(
-                    text = "I grafici reali prenderanno forma non appena registrerai delle spese. Al momento stai visualizzando dati demo rappresentativi.".loc(),
+                    text = "L'andamento storico sarà disponibile dopo il primo mese di utilizzo.".loc(),
                     style = MaterialTheme.typography.bodySmall,
                     color = SweetTextDark,
                     modifier = Modifier.weight(1f)
@@ -298,7 +266,7 @@ fun StatsScreen(
         DonutChart(
             data = categoryDistribution,
             centerLabel = "Totale Speso".loc(),
-            centerValue = String.format("%s%.2f", currency, currentMonthTotal),
+            centerValue = String.format("%s %s", currency, currentMonthTotal.formatCurrency()),
             currencySymbol = currency,
             modifier = Modifier
                 .fillMaxWidth()
@@ -361,24 +329,28 @@ fun StatsScreen(
             categories.find { it.id == id }?.name ?: "Categoria"
         } ?: "Totale Spese".loc()
 
-        TrendLineChart(
-            points = trendPoints,
-            selectedCategoryId = selectedCategoryIdForTrend,
-            selectedCategoryName = filterCatName,
-            currencySymbol = currency,
-            modifier = Modifier
-                .fillMaxWidth()
-                .shadow(2.dp, RoundedCornerShape(24.dp))
-        )
+        Box(modifier = Modifier.alpha(if (isHistoricalTrendAvailable) 1.0f else 0.4f)) {
+            TrendLineChart(
+                points = trendPoints,
+                selectedCategoryId = selectedCategoryIdForTrend,
+                selectedCategoryName = filterCatName,
+                currencySymbol = currency,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .shadow(2.dp, RoundedCornerShape(24.dp))
+            )
+        }
 
         // --- SAVINGS HISTORICAL TREND ---
-        MonthlySavingsChart(
-            points = trendPoints,
-            currencySymbol = currency,
-            modifier = Modifier
-                .fillMaxWidth()
-                .shadow(2.dp, RoundedCornerShape(24.dp))
-        )
+        Box(modifier = Modifier.alpha(if (isHistoricalTrendAvailable) 1.0f else 0.4f)) {
+            MonthlySavingsChart(
+                points = trendPoints,
+                currencySymbol = currency,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .shadow(2.dp, RoundedCornerShape(24.dp))
+            )
+        }
 
         Spacer(modifier = Modifier.height(24.dp))
     }

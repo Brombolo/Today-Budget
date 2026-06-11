@@ -2,14 +2,17 @@ package com.example.ui.screens
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -17,6 +20,8 @@ import androidx.compose.ui.unit.sp
 import com.example.ui.theme.SweetPrimary
 import com.example.ui.theme.SweetTextDark
 import com.example.viewmodel.BudgetViewModel
+import com.example.ui.parseCurrency
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -26,8 +31,13 @@ fun OnboardingScreen(
     var userName by remember { mutableStateOf("") }
     var budget by remember { mutableStateOf("") }
     var currency by remember { mutableStateOf("€") }
-    var startDay by remember { mutableStateOf("1") }
-    var startHour by remember { mutableStateOf("0") }
+    var startDay by remember { mutableStateOf(1) }
+    var startHour by remember { mutableStateOf(0) }
+
+    var currencyExpanded by remember { mutableStateOf(false) }
+    var startDayExpanded by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -63,50 +73,114 @@ fun OnboardingScreen(
 
             OutlinedTextField(
                 value = budget,
-                onValueChange = { budget = it },
+                onValueChange = { 
+                    if (it.isEmpty() || it.replace(",", ".").toDoubleOrNull() != null || it.endsWith(".") || it.endsWith(",")) {
+                        budget = it 
+                    }
+                },
                 label = { Text("Budget mensile iniziale") },
-                placeholder = { Text("es. 1000") },
+                placeholder = { Text("es. 1000,00") },
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true
             )
 
-            OutlinedTextField(
-                value = currency,
-                onValueChange = { currency = it },
-                label = { Text("Valuta") },
-                placeholder = { Text("es. €") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
+            // Currency Dropdown
+            Box(modifier = Modifier.fillMaxWidth()) {
+                OutlinedTextField(
+                    value = currency,
+                    onValueChange = { },
+                    readOnly = true,
+                    label = { Text("Valuta") },
+                    modifier = Modifier.fillMaxWidth(),
+                    trailingIcon = {
+                        IconButton(onClick = { currencyExpanded = true }) {
+                            Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                        }
+                    }
+                )
+                DropdownMenu(
+                    expanded = currencyExpanded,
+                    onDismissRequest = { currencyExpanded = false },
+                    modifier = Modifier.fillMaxWidth(0.8f)
+                ) {
+                    listOf("€", "$", "£", "¥").forEach { sym ->
+                        DropdownMenuItem(
+                            text = { Text(sym) },
+                            onClick = {
+                                currency = sym
+                                currencyExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
 
-            OutlinedTextField(
-                value = startDay,
-                onValueChange = { startDay = it },
-                label = { Text("Giorno inizio mese") },
-                placeholder = { Text("1-28") },
-                modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true
-            )
+            // Start Day Dropdown
+            Box(modifier = Modifier.fillMaxWidth()) {
+                OutlinedTextField(
+                    value = "Giorno $startDay",
+                    onValueChange = { },
+                    readOnly = true,
+                    label = { Text("Giorno inizio mese") },
+                    modifier = Modifier.fillMaxWidth(),
+                    trailingIcon = {
+                        IconButton(onClick = { startDayExpanded = true }) {
+                            Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                        }
+                    }
+                )
+                DropdownMenu(
+                    expanded = startDayExpanded,
+                    onDismissRequest = { startDayExpanded = false },
+                    modifier = Modifier.fillMaxWidth(0.8f).heightIn(max = 300.dp)
+                ) {
+                    (1..31).forEach { day ->
+                        DropdownMenuItem(
+                            text = { Text("Giorno $day") },
+                            onClick = {
+                                startDay = day
+                                startDayExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
 
-            OutlinedTextField(
-                value = startHour,
-                onValueChange = { startHour = it },
-                label = { Text("Orario fine giornata (0-23)") },
-                placeholder = { Text("es. 0") },
-                modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true
-            )
+            // Start Hour Button
+            OutlinedButton(
+                onClick = {
+                    android.app.TimePickerDialog(
+                        context,
+                        { _, hour, _ ->
+                            startHour = hour.coerceIn(0, 11)
+                        },
+                        startHour,
+                        0,
+                        true
+                    ).show()
+                },
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                shape = RoundedCornerShape(4.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = SweetTextDark)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Orario inizio giornata", style = MaterialTheme.typography.bodyLarge)
+                    Text(String.format(Locale.ITALY, "%02d:00", startHour), fontWeight = FontWeight.Bold)
+                }
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
 
             Button(
                 onClick = {
-                    val budgetVal = budget.toDoubleOrNull() ?: 0.0
-                    val dayVal = startDay.toIntOrNull()?.coerceIn(1, 28) ?: 1
-                    val hourVal = startHour.toIntOrNull()?.coerceIn(0, 23) ?: 0
+                    val budgetVal = budget.parseCurrency() ?: 0.0
+                    val dayVal = startDay.coerceIn(1, 31)
+                    val hourVal = startHour.coerceIn(0, 11)
                     val nameVal = if (userName.isBlank()) "User" else userName
                     
                     viewModel.completeOnboarding(

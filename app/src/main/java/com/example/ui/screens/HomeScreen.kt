@@ -43,7 +43,9 @@ import com.example.ui.components.AddEditExpenseDialog
 import com.example.ui.components.AdjustBudgetDialog
 import com.example.ui.theme.*
 import com.example.ui.loc
+import com.example.ui.formatCurrency
 import java.time.Instant
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -65,6 +67,16 @@ fun HomeScreen(
     var showExpenseDialog by remember { mutableStateOf(false) }
     var showAdjustDialog by remember { mutableStateOf(false) }
     var quickActionCategoryId by remember { mutableStateOf<Int?>(null) }
+
+    // Logic for one-time budget warning per day
+    var hasDismissedWarningToday by remember { mutableStateOf(false) }
+    val currentDay = LocalDate.now().toString()
+    var lastWarningDay by remember { mutableStateOf("") }
+    
+    if (lastWarningDay != currentDay) {
+        hasDismissedWarningToday = false
+        lastWarningDay = currentDay
+    }
 
     val formatter = DateTimeFormatter.ofPattern("d MMMM", Locale.getDefault())
     val timeFormatter = DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault())
@@ -152,7 +164,7 @@ fun HomeScreen(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = String.format("%s %.2f", currency, budgetState.todaySpendableBudget),
+                            text = String.format("%s %s", currency, budgetState.todaySpendableBudget.formatCurrency()),
                             style = MaterialTheme.typography.displayMedium.copy(
                                 fontWeight = FontWeight.Black,
                                 letterSpacing = (-1).sp
@@ -173,7 +185,7 @@ fun HomeScreen(
                                 .padding(horizontal = 10.dp, vertical = 6.dp)
                         ) {
                             Text(
-                                text = if (positiveCarryOver) "+ %s %.2f mese precedente".loc(currency, absCarryOver) else "- %s %.2f mese precedente".loc(currency, absCarryOver),
+                                text = if (positiveCarryOver) "+ %s %s mese precedente".loc(currency, absCarryOver.formatCurrency()) else "- %s %s mese precedente".loc(currency, absCarryOver.formatCurrency()),
                                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                                 color = SweetSecondary
                             )
@@ -195,21 +207,25 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
-                        Text(
-                            text = "PREVISTO DOMANI".loc(),
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.sp
-                            ),
-                            color = SweetSecondary.copy(alpha = 0.6f)
-                        )
-                        Text(
-                            text = String.format("%s %.2f", currency, budgetState.tomorrowExpectedBudget),
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = SweetSecondary,
-                            modifier = Modifier.testTag("tomorrow_expected_budget")
-                        )
+                    if (budgetState.daysRemainingInCycle > 1) {
+                        Column {
+                            Text(
+                                text = "PREVISTO DOMANI".loc(),
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 1.sp
+                                ),
+                                color = SweetSecondary.copy(alpha = 0.6f)
+                            )
+                            Text(
+                                text = String.format("%s %s", currency, budgetState.tomorrowExpectedBudget.formatCurrency()),
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = SweetSecondary,
+                                modifier = Modifier.testTag("tomorrow_expected_budget")
+                            )
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.weight(1f))
                     }
 
                     Column(horizontalAlignment = Alignment.End) {
@@ -232,13 +248,14 @@ fun HomeScreen(
         }
 
         // --- Negative Budget Alert Callout ---
-        if (budgetState.todaySpendableBudget < 0.0) {
+        if (budgetState.todaySpendableBudget < 0.0 && !hasDismissedWarningToday) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(18.dp))
                     .background(PastelRose.copy(alpha = 0.08f))
                     .border(1.5.dp, PastelRose.copy(alpha = 0.25f), RoundedCornerShape(18.dp))
+                    .clickable { hasDismissedWarningToday = true }
                     .padding(14.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -331,7 +348,7 @@ fun HomeScreen(
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "%s %.2f spesi / %s %.2f".loc(currency, spentAmount, currency, budgetState.currentMonthStartingBudget),
+                        text = "%s %s spesi / %s %s".loc(currency, spentAmount.formatCurrency(), currency, budgetState.currentMonthStartingBudget.formatCurrency()),
                         style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
                         color = SweetTextDark
                     )
@@ -510,7 +527,7 @@ fun HomeScreen(
                                 }
 
                                 Text(
-                                    text = String.format("- %s %.2f", currency, exp.amount),
+                                    text = String.format("- %s %s", currency, exp.amount.formatCurrency()),
                                     style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Black),
                                     color = PastelRose
                                 )
