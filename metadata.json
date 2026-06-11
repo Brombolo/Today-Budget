@@ -1,0 +1,6 @@
+{
+  "name": "Today Budget",
+  "description": "Gestione intuitiva delle spese quotidiane con budget giornaliero flessibile e statistiche dettagliate.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
