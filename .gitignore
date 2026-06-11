@@ -1,18 +1,38 @@
+# IDE - Android Studio & IntelliJ
+.idea/
 *.iml
-.gradle
-.kotlin
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
+*.iws
+*.ipr
+.navigation/
+captures/
+.externalNativeBuild/
+.cxx/
+cmake-build-*/
+.attach_pid*
+
+# Gradle
+.gradle/
+build/
+*/build/
+
+# Local configuration
 local.properties
 .env
-debug.keystore
+.env.*
+
+# Keystores & Signing
+*.jks
+*.keystore
+!debug.keystore.base64
+
+# OS generated
+.DS_Store
+Thumbs.db
+
+# Kotlin
+.kotlin/
+*.kotlin_module
+
+# Android Studio logs & temporary files
+*.log
+/captures/
