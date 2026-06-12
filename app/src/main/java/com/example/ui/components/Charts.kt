@@ -2,9 +2,9 @@ package com.example.ui.components
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -24,6 +24,10 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.*
+import com.example.ui.loc
+import com.example.ui.formatCurrency
+import java.util.Locale
+import androidx.compose.foundation.Canvas
 
 // Data representation for Charts
 data class ChartCategoryData(
@@ -38,6 +42,7 @@ data class MonthlyTrendPoint(
     val monthLabel: String,
     val amount: Double,
     val savings: Double, // positive = saved, negative = overspend
+    val budget: Double = 0.0,
     val categoriesAmount: Map<Int, Double> = emptyMap() // categoryId to spent amount
 )
 
@@ -52,11 +57,11 @@ fun DonutChart(
     val total = data.sumOf { it.amount }
     if (total == 0.0) {
         Box(
-            modifier = modifier.background(MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp)),
+            modifier = modifier.background(MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp)).padding(24.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "Nessuna spesa registrata",
+                text = "Nessuna spesa registrata".loc(),
                 style = MaterialTheme.typography.bodyMedium,
                 color = SweetTextLight
             )
@@ -124,7 +129,7 @@ fun DonutChart(
             }
         }
 
-        // Legend list (Expanded space below to support all 10 categories)
+        // Legend list (Expanded space below to support all categories)
         Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -149,7 +154,7 @@ fun DonutChart(
                         modifier = Modifier.weight(1f)
                     )
                     Text(
-                        text = String.format("%d%% (%s %.2f)", percentage, currencySymbol, item.amount),
+                        text = String.format(Locale.ITALY, "%d%% (%s %s)", percentage, currencySymbol, item.amount.formatCurrency()),
                         style = TextStyle(fontSize = 11.sp, color = SweetTextLight, fontWeight = FontWeight.Bold)
                     )
                 }
@@ -161,179 +166,18 @@ fun DonutChart(
 @Composable
 fun TrendLineChart(
     points: List<MonthlyTrendPoint>,
-    selectedCategoryId: Int? = null, // null for total, non-null for specific category
+    selectedCategoryId: Int? = null,
     selectedCategoryName: String = "Totale",
     currencySymbol: String = "€",
+    isEnabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     if (points.isEmpty()) return
 
     val textMeasurer = rememberTextMeasurer()
 
-    val amounts = points.map { pt ->
-        if (selectedCategoryId != null) {
-            pt.categoriesAmount[selectedCategoryId] ?: 0.0
-        } else {
-            pt.amount
-        }
-    }
-
-    val maxAmount = (amounts.maxOrNull() ?: 100.0).coerceAtLeast(10.0)
+    val maxAmount = points.flatMap { listOf(it.amount, it.budget) }.maxOrNull()?.coerceAtLeast(100.0) ?: 100.0
     val gridCount = 4
-
-    var animateTrigger by remember { mutableStateOf(false) }
-    val animationProgress by animateFloatAsState(
-        targetValue = if (animateTrigger) 1f else 0f,
-        animationSpec = tween(durationMillis = 1000)
-    )
-
-    LaunchedEffect(points, selectedCategoryId) {
-        animateTrigger = true
-    }
-
-    Column(
-        modifier = modifier
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(24.dp))
-            .padding(16.dp)
-    ) {
-        Text(
-            text = "Andamento Spese - $selectedCategoryName",
-            style = MaterialTheme.typography.titleMedium,
-            color = SweetTextDark
-        )
-        Text(
-            text = "Valori mensili degli ultimi cicli inseriti",
-            style = MaterialTheme.typography.labelSmall,
-            color = SweetTextLight,
-            modifier = Modifier.padding(bottom = 12.dp)
-        )
-
-        Canvas(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(160.dp)
-        ) {
-            val paddingLeft = 110f
-            val paddingBottom = 60f
-            val paddingTop = 10f
-            val paddingRight = 20f
-
-            val chartWidth = size.width - paddingLeft - paddingRight
-            val chartHeight = size.height - paddingBottom - paddingTop
-
-            // Draw Y Grid lines & text labels
-            for (i in 0..gridCount) {
-                val yVal = maxAmount * (i.toDouble() / gridCount.toDouble())
-                val yPos = size.height - paddingBottom - (chartHeight * (i.toFloat() / gridCount.toFloat()))
-
-                drawLine(
-                    color = SweetCardGlow,
-                    start = Offset(paddingLeft, yPos),
-                    end = Offset(size.width - paddingRight, yPos),
-                    strokeWidth = 2f
-                )
-
-                // Label Text
-                val labelText = String.format("%s%.0f", currencySymbol, yVal)
-                drawText(
-                    textMeasurer = textMeasurer,
-                    text = labelText,
-                    topLeft = Offset(10f, yPos - 20f),
-                    style = TextStyle(fontSize = 10.sp, color = SweetTextLight)
-                )
-            }
-
-            // Draw Points & Lines
-            val colWidth = if (points.size > 1) chartWidth / (points.size - 1) else chartWidth
-            val pathPoints = mutableListOf<Offset>()
-
-            points.forEachIndexed { index, pt ->
-                val amt = if (selectedCategoryId != null) {
-                    pt.categoriesAmount[selectedCategoryId] ?: 0.0
-                } else {
-                    pt.amount
-                }
-
-                val xPos = paddingLeft + (index * colWidth)
-                val yFraction = (amt / maxAmount).toFloat()
-                val yPos = size.height - paddingBottom - (chartHeight * yFraction) * animationProgress
-
-                val pointOffset = Offset(xPos, yPos)
-                pathPoints.add(pointOffset)
-
-                // Draw X Label for months
-                drawText(
-                    textMeasurer = textMeasurer,
-                    text = pt.monthLabel,
-                    topLeft = Offset(xPos - 50f, size.height - paddingBottom + 10f),
-                    style = TextStyle(fontSize = 11.sp, color = SweetTextDark)
-                )
-            }
-
-            // Draw line
-            if (pathPoints.size >= 2) {
-                for (i in 0 until pathPoints.size - 1) {
-                    drawLine(
-                        color = SweetPrimary,
-                        start = pathPoints[i],
-                        end = pathPoints[i + 1],
-                        strokeWidth = 6f,
-                        cap = StrokeCap.Round
-                    )
-                }
-
-                // Fill area below trend line with light gradient
-                val fillPath = androidx.compose.ui.graphics.Path().apply {
-                    moveTo(pathPoints.first().x, size.height - paddingBottom)
-                    pathPoints.forEach { linePoint ->
-                        lineTo(linePoint.x, linePoint.y)
-                    }
-                    lineTo(pathPoints.last().x, size.height - paddingBottom)
-                    close()
-                }
-
-                drawPath(
-                    path = fillPath,
-                    brush = Brush.verticalGradient(
-                        colors = listOf(SweetPrimary.copy(alpha = 0.3f), Color.Transparent),
-                        startY = paddingTop,
-                        endY = size.height - paddingBottom
-                    )
-                )
-            }
-
-            // Draw dot on nodes
-            pathPoints.forEach { pt ->
-                drawCircle(
-                    color = Color.White,
-                    radius = 8f,
-                    center = pt
-                )
-                drawCircle(
-                    color = SweetPrimary,
-                    radius = 5f,
-                    center = pt
-                )
-            }
-        }
-    }
-}
-
-/**
- * Savings vs Overspend Chart.
- * Upward green bars for savings, Downward red bars for overspent budgets.
- */
-@Composable
-fun MonthlySavingsChart(
-    points: List<MonthlyTrendPoint>,
-    currencySymbol: String = "€",
-    modifier: Modifier = Modifier
-) {
-    if (points.isEmpty()) return
-
-    val textMeasurer = rememberTextMeasurer()
-
-    val maxAbsValue = points.map { Math.abs(it.savings) }.maxOrNull()?.coerceAtLeast(50.0) ?: 100.0
 
     var animateTrigger by remember { mutableStateOf(false) }
     val animationProgress by animateFloatAsState(
@@ -351,89 +195,172 @@ fun MonthlySavingsChart(
             .padding(16.dp)
     ) {
         Text(
-            text = "Andamento Risparmio",
+            text = "Andamento Spese".loc() + if (selectedCategoryId != null) " - $selectedCategoryName" else "",
             style = MaterialTheme.typography.titleMedium,
-            color = SweetTextDark
+            color = if (isEnabled) SweetTextDark else SweetTextLight
         )
-        Text(
-            text = "Verde = Risparmio | Rosso = Sforamento",
-            style = MaterialTheme.typography.labelSmall,
-            color = SweetTextLight,
-            modifier = Modifier.padding(bottom = 12.dp)
-        )
+        
+        if (isEnabled && selectedCategoryId == null) {
+            Row(modifier = Modifier.padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                LegendItem(color = SweetPrimary, label = "Spese".loc())
+                LegendItem(color = PastelLavender.copy(alpha = 0.6f), label = "Budget".loc())
+            }
+        }
 
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(160.dp)
         ) {
-            val paddingLeft = 100f
-            val paddingBottom = 40f
+            val paddingLeft = 110f
+            val paddingBottom = 60f
             val paddingTop = 10f
             val paddingRight = 20f
 
             val chartWidth = size.width - paddingLeft - paddingRight
             val chartHeight = size.height - paddingBottom - paddingTop
 
-            // Baseline for zero
-            val zeroY = paddingTop + (chartHeight / 2f)
+            // Draw Y Grid lines
+            for (i in 0..gridCount) {
+                val yVal = maxAmount * (i.toDouble() / gridCount.toDouble())
+                val yPos = size.height - paddingBottom - (chartHeight * (i.toFloat() / gridCount.toFloat()))
 
-            // Draw baseline
-            drawLine(
-                color = SweetTextLight.copy(alpha = 0.6f),
-                start = Offset(paddingLeft, zeroY),
-                end = Offset(size.width - paddingRight, zeroY),
-                strokeWidth = 3f
-            )
-
-            // Draw bounds texts
-            drawText(
-                textMeasurer = textMeasurer,
-                text = String.format("+%s%.0f", currencySymbol, maxAbsValue),
-                topLeft = Offset(10f, paddingTop),
-                style = TextStyle(fontSize = 10.sp, color = PastelMint)
-            )
-            drawText(
-                textMeasurer = textMeasurer,
-                text = String.format("-%s%.0f", currencySymbol, maxAbsValue),
-                topLeft = Offset(10f, size.height - paddingBottom - 25f),
-                style = TextStyle(fontSize = 10.sp, color = PastelRose)
-            )
-
-            // Draw positive/negative bars
-            val barCount = points.size
-            val spacing = 25f
-            val totalSpacing = spacing * (barCount + 1)
-            val barWidth = (chartWidth - totalSpacing) / barCount
-
-            points.forEachIndexed { index, pt ->
-                val saving = pt.savings
-                val isPositive = saving >= 0.0
-
-                val barHeightFraction = (Math.abs(saving) / maxAbsValue).toFloat() * animationProgress
-                val barHeight = (chartHeight / 2f) * barHeightFraction
-
-                val xPos = paddingLeft + spacing + index * (barWidth + spacing)
-                val barColor = if (isPositive) PastelMint else PastelRose
-
-                val topY = if (isPositive) zeroY - barHeight else zeroY
-                val rectSize = Size(barWidth, barHeight)
-
-                drawRoundRect(
-                    color = barColor,
-                    topLeft = Offset(xPos, topY),
-                    size = rectSize,
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(6f, 6f)
-                )
-
-                // Label on X bar
-                val labelOffset = if (isPositive) zeroY + 10f else zeroY - 30f
+                drawLine(color = SweetCardGlow, start = Offset(paddingLeft, yPos), end = Offset(size.width - paddingRight, yPos), strokeWidth = 2f)
                 drawText(
                     textMeasurer = textMeasurer,
-                    text = pt.monthLabel,
-                    topLeft = Offset(xPos + (barWidth / 2f) - 25f, labelOffset),
-                    style = TextStyle(fontSize = 10.sp, color = SweetTextDark)
+                    text = String.format(Locale.ITALY, "%s%.0f", currencySymbol, yVal),
+                    topLeft = Offset(10f, yPos - 15f),
+                    style = TextStyle(fontSize = 10.sp, color = SweetTextLight)
                 )
+            }
+
+            val colWidth = if (points.size > 1) chartWidth / (points.size - 1) else chartWidth
+            
+            // Draw Budget Line (Point 12.1) - only for overall
+            if (selectedCategoryId == null && isEnabled) {
+                val budgetPoints = points.mapIndexed { idx, pt ->
+                    Offset(paddingLeft + (idx * colWidth), size.height - paddingBottom - (chartHeight * (pt.budget / maxAmount).toFloat()))
+                }
+                for (i in 0 until budgetPoints.size - 1) {
+                    drawLine(color = PastelLavender.copy(alpha = 0.5f), start = budgetPoints[i], end = budgetPoints[i + 1], strokeWidth = 4f, cap = StrokeCap.Round)
+                }
+            }
+
+            // Draw Spending Line
+            val pathPoints = points.mapIndexed { index, pt ->
+                val amt = if (selectedCategoryId != null) pt.categoriesAmount[selectedCategoryId] ?: 0.0 else pt.amount
+                val xPos = paddingLeft + (index * colWidth)
+                val yPos = size.height - paddingBottom - (chartHeight * (amt / maxAmount).toFloat()) * animationProgress
+                
+                // Draw X Label
+                drawText(textMeasurer = textMeasurer, text = pt.monthLabel, topLeft = Offset(xPos - 30f, size.height - paddingBottom + 10f), style = TextStyle(fontSize = 10.sp, color = SweetTextDark))
+                
+                Offset(xPos, yPos)
+            }
+
+            if (pathPoints.size >= 2) {
+                for (i in 0 until pathPoints.size - 1) {
+                    drawLine(color = SweetPrimary, start = pathPoints[i], end = pathPoints[i + 1], strokeWidth = 6f, cap = StrokeCap.Round)
+                }
+            }
+
+            pathPoints.forEach { pt ->
+                drawCircle(color = Color.White, radius = 7f, center = pt)
+                drawCircle(color = SweetPrimary, radius = 4f, center = pt)
+            }
+        }
+    }
+}
+
+@Composable
+fun LegendItem(color: Color, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(modifier = Modifier.size(8.dp).background(color, CircleShape))
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(text = label, style = TextStyle(fontSize = 10.sp, color = SweetTextLight))
+    }
+}
+
+@Composable
+fun MonthlySavingsChart(
+    points: List<MonthlyTrendPoint>,
+    currencySymbol: String = "€",
+    isEnabled: Boolean = true,
+    modifier: Modifier = Modifier
+) {
+    if (points.isEmpty()) return
+    val textMeasurer = rememberTextMeasurer()
+
+    val maxAbsValue = points.map { Math.abs(it.savings) }.maxOrNull()?.coerceAtLeast(50.0) ?: 100.0
+    val avgSaving = if (points.isNotEmpty()) points.sumOf { it.savings } / points.size else 0.0
+
+    var animateTrigger by remember { mutableStateOf(false) }
+    val animationProgress by animateFloatAsState(
+        targetValue = if (animateTrigger) 1f else 0f,
+        animationSpec = tween(durationMillis = 1000)
+    )
+
+    LaunchedEffect(points) { animateTrigger = true }
+
+    Column(
+        modifier = modifier
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(24.dp))
+            .padding(16.dp)
+    ) {
+        Text(
+            text = "Andamento Risparmio".loc(),
+            style = MaterialTheme.typography.titleMedium,
+            color = if (isEnabled) SweetTextDark else SweetTextLight
+        )
+        Text(
+            text = "Verde = Risparmio | Rosso = Sforamento".loc(),
+            style = MaterialTheme.typography.labelSmall,
+            color = SweetTextLight,
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+
+        Canvas(modifier = Modifier.fillMaxWidth().height(160.dp)) {
+            val paddingLeft = 100f
+            val paddingBottom = 40f
+            val paddingTop = 10f
+            val chartWidth = size.width - paddingLeft - 20f
+            val chartHeight = size.height - paddingBottom - paddingTop
+            val zeroY = paddingTop + (chartHeight / 2f)
+
+            // Baseline
+            drawLine(color = SweetTextLight.copy(alpha = 0.4f), start = Offset(paddingLeft, zeroY), end = Offset(size.width - 20f, zeroY), strokeWidth = 2f)
+
+            // Average Line (Point 12.2)
+            if (isEnabled) {
+                val avgY = zeroY - (avgSaving / maxAbsValue).toFloat() * (chartHeight / 2f)
+                drawLine(
+                    color = PastelLavender,
+                    start = Offset(paddingLeft, avgY),
+                    end = Offset(size.width - 20f, avgY),
+                    strokeWidth = 3f,
+                    cap = StrokeCap.Round,
+                    pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(10f, 10f))
+                )
+                drawText(textMeasurer, "Media: ".loc() + avgSaving.formatCurrency(), Offset(paddingLeft, avgY - 25f), style = TextStyle(fontSize = 9.sp, color = PastelLavender, fontWeight = FontWeight.Bold))
+            }
+
+            // Bars
+            val barWidth = (chartWidth / points.size.toFloat()) * 0.7f
+            val spacing = (chartWidth / points.size.toFloat()) * 0.3f
+
+            points.forEachIndexed { index, pt ->
+                val xPos = paddingLeft + spacing / 2 + index * (barWidth + spacing)
+                val barHeight = (Math.abs(pt.savings) / maxAbsValue).toFloat() * (chartHeight / 2f) * animationProgress
+                val topY = if (pt.savings >= 0) zeroY - barHeight else zeroY
+                
+                drawRoundRect(
+                    color = if (pt.savings >= 0) PastelMint else PastelRose,
+                    topLeft = Offset(xPos, topY),
+                    size = Size(barWidth, barHeight.coerceAtLeast(1f)),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(4f, 4f)
+                )
+                
+                drawText(textMeasurer, pt.monthLabel, Offset(xPos + barWidth / 2 - 15f, size.height - 30f), style = TextStyle(fontSize = 9.sp, color = SweetTextDark))
             }
         }
     }

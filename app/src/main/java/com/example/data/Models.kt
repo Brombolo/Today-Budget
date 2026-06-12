@@ -33,3 +33,9 @@ data class Setting(
     @PrimaryKey val key: String,
     val value: String
 )
+
+@Entity(tableName = "monthly_budgets")
+data class MonthlyBudget(
+    @PrimaryKey val cycleStartDate: String, // format "YYYY-MM-DD"
+    val budget: Double
+)

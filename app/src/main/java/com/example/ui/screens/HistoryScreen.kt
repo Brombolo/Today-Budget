@@ -1,8 +1,6 @@
 package com.example.ui.screens
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -19,17 +17,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.data.Category
 import com.example.data.Expense
 import com.example.viewmodel.BudgetViewModel
+import com.example.viewmodel.HistoryItem
 import com.example.ui.components.AddEditExpenseDialog
 import com.example.ui.theme.*
 import com.example.ui.loc
+import com.example.ui.formatCurrency
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -42,23 +40,32 @@ fun HistoryScreen(
     viewModel: BudgetViewModel,
     modifier: Modifier = Modifier
 ) {
-    val expenses by viewModel.expenses.collectAsState(initial = emptyList())
+    val history by viewModel.history.collectAsState(initial = emptyList())
     val categories by viewModel.categories.collectAsState(initial = emptyList())
     val currency by viewModel.currencySymbol.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
     var selectedExpenseForEdit by remember { mutableStateOf<Expense?>(null) }
-    var showDeleteConfirmDialog by remember { mutableStateOf<Expense?>(null) }
+    var showDeleteConfirmDialog by remember { mutableStateOf<HistoryItem?>(null) }
 
     val formatter = DateTimeFormatter.ofPattern("d MMM yyyy, HH:mm", Locale.ITALIAN)
 
     // Filter logic
-    val filteredExpenses = remember(expenses, categories, searchQuery) {
-        expenses.filter { exp ->
-            val catName = categories.find { it.id == exp.categoryId }?.name ?: "Altro"
-            catName.contains(searchQuery, ignoreCase = true) ||
-                    exp.description.contains(searchQuery, ignoreCase = true) ||
-                    exp.amount.toString().contains(searchQuery)
+    val filteredHistory = remember(history, searchQuery) {
+        history.filter { item ->
+            when (item) {
+                is HistoryItem.ExpenseItem -> {
+                    val catName = item.category?.name ?: "Altro"
+                    catName.contains(searchQuery, ignoreCase = true) ||
+                            item.expense.description.contains(searchQuery, ignoreCase = true) ||
+                            item.expense.amount.toString().contains(searchQuery)
+                }
+                is HistoryItem.AdjustmentItem -> {
+                    "budget".contains(searchQuery, ignoreCase = true) ||
+                            item.adjustment.note.contains(searchQuery, ignoreCase = true) ||
+                            item.adjustment.amount.toString().contains(searchQuery)
+                }
+            }
         }
     }
 
@@ -103,7 +110,7 @@ fun HistoryScreen(
         )
 
         // Transaction list
-        if (filteredExpenses.isEmpty()) {
+        if (filteredHistory.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -114,15 +121,9 @@ fun HistoryScreen(
                     Text(text = "🔍", fontSize = 48.sp)
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "Nessuna spesa trovata".loc(),
+                        text = "Nessuna voce trovata".loc(),
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         color = SweetTextDark
-                    )
-                    Text(
-                        text = "Prova a cambiare filtri o inserisci una spesa.".loc(),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = SweetTextLight,
-                        textAlign = TextAlign.Center
                     )
                 }
             }
@@ -131,13 +132,9 @@ fun HistoryScreen(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                items(filteredExpenses, key = { it.id }) { exp ->
-                    val cat = categories.find { it.id == exp.categoryId }
-                    val catName = cat?.name ?: "Altro"
-                    val catIcon = cat?.icon ?: "📦"
-
+                items(filteredHistory) { item ->
                     val dateTime = LocalDateTime.ofInstant(
-                        Instant.ofEpochMilli(exp.timestamp),
+                        Instant.ofEpochMilli(item.timestamp),
                         ZoneId.systemDefault()
                     )
                     val dateLabel = dateTime.format(formatter)
@@ -155,54 +152,67 @@ fun HistoryScreen(
                                 .padding(14.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Category Icon Bubble
-                            Box(
-                                modifier = Modifier
-                                    .size(46.dp)
-                                    .clip(CircleShape)
-                                    .background(SweetPrimaryLight),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(text = catIcon, fontSize = 24.sp)
+                            // Category Icon Bubble + Name aligned under
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(46.dp)
+                                        .clip(CircleShape)
+                                        .background(SweetPrimaryLight),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    val icon = when (item) {
+                                        is HistoryItem.ExpenseItem -> item.category?.icon ?: "📦"
+                                        is HistoryItem.AdjustmentItem -> "⚙️"
+                                    }
+                                    Text(text = icon, fontSize = 24.sp)
+                                }
+                                val subText = when (item) {
+                                    is HistoryItem.ExpenseItem -> item.category?.name ?: "Altro"
+                                    is HistoryItem.AdjustmentItem -> "Budget"
+                                }
+                                Text(
+                                    text = subText,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = SweetTextLight,
+                                    fontSize = 9.sp,
+                                    maxLines = 1
+                                )
                             }
 
                             Spacer(modifier = Modifier.width(12.dp))
 
                             // Details
                             Column(modifier = Modifier.weight(1f)) {
+                                val title = when (item) {
+                                    is HistoryItem.ExpenseItem -> if (item.expense.description.isNotEmpty()) item.expense.description else (item.category?.name ?: "Spesa")
+                                    is HistoryItem.AdjustmentItem -> item.adjustment.note
+                                }
                                 Text(
-                                    text = if (exp.description.isNotEmpty()) exp.description else catName,
+                                    text = title,
                                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                                     color = SweetTextDark,
                                     maxLines = 1
                                 )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    if (exp.description.isNotEmpty()) {
-                                        Text(
-                                            text = catName,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = SweetPrimary,
-                                            fontWeight = FontWeight.SemiBold
-                                        )
-                                        Box(modifier = Modifier.size(3.dp).clip(CircleShape).background(SweetTextLight))
-                                    }
-                                    Text(
-                                        text = dateLabel,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = SweetTextLight
-                                    )
-                                }
+                                Text(
+                                    text = dateLabel,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = SweetTextLight
+                                )
                             }
 
                             // Price Tag
+                            val amount = when (item) {
+                                is HistoryItem.ExpenseItem -> item.expense.amount
+                                is HistoryItem.AdjustmentItem -> item.adjustment.amount
+                            }
+                            val isNegative = amount < 0 || item is HistoryItem.ExpenseItem
+                            val absAmount = Math.abs(amount)
+                            
                             Text(
-                                text = String.format("-%s%.2f", currency, exp.amount),
+                                text = (if (isNegative) "-" else "+") + currency + absAmount.formatCurrency(),
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Black),
-                                color = PastelRose,
+                                color = if (isNegative) PastelRose else PastelMint,
                                 modifier = Modifier.padding(horizontal = 6.dp)
                             )
 
@@ -211,19 +221,21 @@ fun HistoryScreen(
                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                IconButton(
-                                    onClick = { selectedExpenseForEdit = exp },
-                                    modifier = Modifier.size(36.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Edit,
-                                        contentDescription = "Modifica".loc(),
-                                        tint = SweetPrimary,
-                                        modifier = Modifier.size(18.dp)
-                                    )
+                                if (item is HistoryItem.ExpenseItem) {
+                                    IconButton(
+                                        onClick = { selectedExpenseForEdit = item.expense },
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = "Modifica".loc(),
+                                            tint = SweetPrimary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
                                 }
                                 IconButton(
-                                    onClick = { showDeleteConfirmDialog = exp },
+                                    onClick = { showDeleteConfirmDialog = item },
                                     modifier = Modifier.size(36.dp)
                                 ) {
                                     Icon(
@@ -256,20 +268,27 @@ fun HistoryScreen(
     }
 
     // Modal Delete Trigger
-    showDeleteConfirmDialog?.let { exp ->
+    showDeleteConfirmDialog?.let { item ->
+        val (typeLabel, amt) = when (item) {
+            is HistoryItem.ExpenseItem -> "spesa" to item.expense.amount
+            is HistoryItem.AdjustmentItem -> "rettifica" to item.adjustment.amount
+        }
         AlertDialog(
             onDismissRequest = { showDeleteConfirmDialog = null },
-            title = { Text("Eliminare spesa?".loc(), fontWeight = FontWeight.Bold, color = SweetTextDark) },
+            title = { Text("Eliminare $typeLabel?".loc(), fontWeight = FontWeight.Bold, color = SweetTextDark) },
             text = {
                 Text(
-                    "Sicuro di voler eliminare questa spesa di %s %s? L'operazione ricalcolerà immediatamente il budget.".loc(currency, String.format("%.2f", exp.amount)),
+                    "Sicuro di voler eliminare questa $typeLabel di %s %s? L'operazione ricalcolerà immediatamente il budget.".loc(currency, amt.formatCurrency()),
                     color = SweetTextLight
                 )
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        viewModel.deleteExpense(exp)
+                        when (item) {
+                            is HistoryItem.ExpenseItem -> viewModel.deleteExpense(item.expense)
+                            is HistoryItem.AdjustmentItem -> viewModel.deleteAdjustment(item.adjustment)
+                        }
                         showDeleteConfirmDialog = null
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = PastelRose)

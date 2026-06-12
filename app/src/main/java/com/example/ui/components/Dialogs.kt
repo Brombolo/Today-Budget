@@ -379,10 +379,19 @@ fun AddEditCategoryDialog(
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = name,
-                    onValueChange = { name = it },
+                    onValueChange = { 
+                        if (it.length <= 12) name = it 
+                    },
                     label = { Text("Nome Categoria") },
-                    placeholder = { Text("es. Intrattenimento") },
+                    placeholder = { Text("es. Casa") },
                     singleLine = true,
+                    supportingText = {
+                        Text(
+                            text = "${name.length} / 12",
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.End
+                        )
+                    },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = SweetPrimary,
                         unfocusedBorderColor = SweetCardGlow

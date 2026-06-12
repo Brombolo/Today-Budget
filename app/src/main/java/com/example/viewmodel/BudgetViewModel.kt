@@ -19,6 +19,14 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
     val categories = repository.categoriesFlow
     val expenses = repository.expensesFlow
     val adjustments = repository.adjustmentsFlow
+    val monthlyBudgets = repository.monthlyBudgetsFlow
+
+    // History flow combining expenses and adjustments
+    val history: Flow<List<HistoryItem>> = combine(expenses, adjustments, categories) { exps, adjs, cats ->
+        val expenseItems = exps.map { HistoryItem.ExpenseItem(it, cats.find { c -> c.id == it.categoryId }) }
+        val adjustmentItems = adjs.map { HistoryItem.AdjustmentItem(it) }
+        (expenseItems + adjustmentItems).sortedByDescending { it.timestamp }
+    }
 
     // Settings States to trigger recalculations reactively
     private val _monthlyBudget = MutableStateFlow(0.0)
@@ -67,7 +75,8 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
         monthlyBudget,
         billingStartDay,
         dayStartHour,
-        carryOverEnabled
+        carryOverEnabled,
+        monthlyBudgets
     ) { arr ->
         val flowExpenses = arr[0] as List<Expense>
         val flowAdjustments = arr[1] as List<Adjustment>
@@ -75,7 +84,9 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
         val startDay = arr[3] as Int
         val startHour = arr[4] as Int
         val carryOver = arr[5] as Boolean
-        calculateBudgetState(flowExpenses, flowAdjustments, defaultBudget, startDay, startHour, carryOver)
+        @Suppress("UNCHECKED_CAST")
+        val flowMonthlyBudgets = arr[6] as List<MonthlyBudget>
+        calculateBudgetState(flowExpenses, flowAdjustments, defaultBudget, startDay, startHour, carryOver, flowMonthlyBudgets)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -156,6 +167,22 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
             repository.saveSetting("app_language", lang)
             _appLanguage.value = lang
             com.example.ui.Trans.setForcedLocale(lang)
+        }
+    }
+
+    fun resetApplication() {
+        viewModelScope.launch {
+            repository.resetApplication()
+            // Reset local states to default
+            _monthlyBudget.value = 0.0
+            _billingStartDay.value = 1
+            _dayStartHour.value = 0
+            _carryOverEnabled.value = false
+            _userName.value = "User"
+            _onboardingCompleted.value = false
+            _appLanguage.value = "system"
+            _pinnedCategoryIds.value = emptyList()
+            com.example.ui.Trans.setForcedLocale(null)
         }
     }
 
@@ -281,7 +308,8 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
         defaultBudget: Double,
         startDay: Int,
         startHour: Int,
-        carryOver: Boolean
+        carryOver: Boolean,
+        allMonthlyBudgets: List<MonthlyBudget>
     ): BudgetState {
         val now = System.currentTimeMillis()
         val currentBusinessDate = BudgetCalendarHelper.getBusinessDate(now, startHour)
@@ -293,6 +321,14 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
         val currentCycleStartTs = BudgetCalendarHelper.getBusinessDayStartTimestamp(currentCycleStart, startHour)
         val nextCycleStartTs = BudgetCalendarHelper.getBusinessDayStartTimestamp(nextCycleStart, startHour)
 
+        // Ensure current month budget is saved
+        val currentCycleStartStr = currentCycleStart.toString()
+        viewModelScope.launch {
+            if (allMonthlyBudgets.none { it.cycleStartDate == currentCycleStartStr }) {
+                repository.saveMonthlyBudget(currentCycleStartStr, defaultBudget)
+            }
+        }
+
         // 2. Separate current month's transactions
         val currentCycleExpenses = allExpenses.filter { it.timestamp in currentCycleStartTs until nextCycleStartTs }
         val currentCycleAdjustments = allAdjustments.filter { it.timestamp in currentCycleStartTs until nextCycleStartTs }
@@ -301,6 +337,10 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
         val prevCycleStart = BudgetCalendarHelper.getCycleStart(currentCycleStart.minusDays(1), startDay)
         val prevCycleStartTs = BudgetCalendarHelper.getBusinessDayStartTimestamp(prevCycleStart, startHour)
         val prevCycleEndTs = currentCycleStartTs // previous cycle ends exactly when current cycle starts
+
+        // Get budget for previous cycle from DB or fallback to current default
+        val prevCycleStartStr = prevCycleStart.toString()
+        val prevCycleBudget = allMonthlyBudgets.find { it.cycleStartDate == prevCycleStartStr }?.budget ?: defaultBudget
 
         val prevCycleExpensesSum = allExpenses
             .filter { it.timestamp in prevCycleStartTs until prevCycleEndTs }
@@ -311,11 +351,11 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
             .sumOf { it.amount }
 
         // Previous Month Saving = Budget + Adjustments - Expenses
-        // Reset savings to 0 if there are no expenses recorded in previous cycle
-        val prevMonthBalance = if (prevCycleExpensesSum == 0.0) {
+        // Note: Adjustments are period-bound (Point 14)
+        val prevMonthBalance = if (prevCycleExpensesSum == 0.0 && prevCycleAdjustmentsSum == 0.0) {
             0.0
         } else {
-            defaultBudget + prevCycleAdjustmentsSum - prevCycleExpensesSum
+            prevCycleBudget + prevCycleAdjustmentsSum - prevCycleExpensesSum
         }
 
         // 4. Carry Over Logic
@@ -329,7 +369,6 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
         val daysRemainingInCycle = ChronoUnit.DAYS.between(currentBusinessDate, nextCycleStart).coerceAtLeast(1)
 
         // 7. Separate today's expenses
-        // Today business date boundaries in physical time
         val todayStartTs = BudgetCalendarHelper.getBusinessDayStartTimestamp(currentBusinessDate, startHour)
         val todayEndTs = BudgetCalendarHelper.getBusinessDayEndTimestamp(currentBusinessDate, startHour)
 
@@ -344,29 +383,29 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
         // Remaining month budget *prior* to today's expenses
         val remainingBudgetPriorToToday = totalMonthlyBudgetConfigured - prevDaysExpensesSum
 
-        // Today's target daily allowance
-        val todayDailyTargetAllowance = remainingBudgetPriorToToday / daysRemainingInCycle.toDouble()
+        // Point 7 Logic: ad inizio giornata il budget complessivo non debba essere negativo
+        // Se il budget totale ad inizio giornata è negativo il budget giornaliero deve mostrare (0 - le spese giornaliere).
+        val dailyBudgetBaseline = if (remainingBudgetPriorToToday < 0) 0.0 else (remainingBudgetPriorToToday / daysRemainingInCycle.toDouble())
 
-        // Today's available daily budget (can be negative if spent too much)
-        val todayAvailableDailyBudget = todayDailyTargetAllowance - todayExpensesSum
+        // Today's available daily budget
+        val todayAvailableDailyBudget = dailyBudgetBaseline - todayExpensesSum
 
-        // Tomorrow's allowance (recalculated based on current remaining budget including today's spending)
-        val remainingBudgetAfterToday = remainingBudgetPriorToToday - todayExpensesSum
+        // Tomorrow's allowance
+        val remainingBudgetAfterToday = totalMonthlyBudgetConfigured - prevDaysExpensesSum - todayExpensesSum
         val daysRemainingTomorrow = daysRemainingInCycle - 1
         
         val nextCycleEnd = BudgetCalendarHelper.getNextCycleStart(nextCycleStart, startDay)
         val totalDaysInNextCycle = ChronoUnit.DAYS.between(nextCycleStart, nextCycleEnd).toDouble()
 
         val tomorrowExpectedDailyBudget = if (daysRemainingTomorrow > 0) {
-            remainingBudgetAfterToday / daysRemainingTomorrow.toDouble()
+            if (remainingBudgetAfterToday < 0) 0.0 else (remainingBudgetAfterToday / daysRemainingTomorrow.toDouble())
         } else {
-            // Last day of the cycle: tomorrow starts a brand new month, so expected budget is next month's standard day allocation
             defaultBudget / totalDaysInNextCycle
         }
 
         return BudgetState(
             todaySpendableBudget = todayAvailableDailyBudget,
-            todayTargetAllowance = todayDailyTargetAllowance,
+            todayTargetAllowance = dailyBudgetBaseline,
             tomorrowExpectedBudget = tomorrowExpectedDailyBudget,
             remainingMonthBudget = remainingBudgetAfterToday,
             daysRemainingInCycle = daysRemainingInCycle.toInt(),
@@ -378,6 +417,16 @@ class BudgetViewModel(application: Application) : AndroidViewModel(application) 
             prevCycleStart = prevCycleStart,
             prevCycleEnd = currentCycleStart.minusDays(1)
         )
+    }
+}
+
+sealed class HistoryItem {
+    abstract val timestamp: Long
+    data class ExpenseItem(val expense: Expense, val category: Category?) : HistoryItem() {
+        override val timestamp: Long = expense.timestamp
+    }
+    data class AdjustmentItem(val adjustment: Adjustment) : HistoryItem() {
+        override val timestamp: Long = adjustment.timestamp
     }
 }
 

@@ -35,9 +35,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.data.Category
-import com.example.viewmodel.BudgetState
 import com.example.viewmodel.BudgetViewModel
+import com.example.viewmodel.HistoryItem
 import com.example.ui.components.AddEditExpenseDialog
 import com.example.ui.components.AdjustBudgetDialog
 import com.example.ui.theme.*
@@ -45,7 +44,6 @@ import com.example.ui.loc
 import com.example.ui.formatCurrency
 import kotlinx.coroutines.delay
 import java.time.Instant
-import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -59,7 +57,7 @@ fun HomeScreen(
 ) {
     val budgetState by viewModel.budgetState.collectAsState()
     val categories by viewModel.categories.collectAsState(initial = emptyList())
-    val expenses by viewModel.expenses.collectAsState(initial = emptyList())
+    val history by viewModel.history.collectAsState(initial = emptyList())
     val currency by viewModel.currencySymbol.collectAsState()
     val userName by viewModel.userName.collectAsState()
     val carryOverEnabled by viewModel.carryOverEnabled.collectAsState()
@@ -119,6 +117,33 @@ fun HomeScreen(
                         color = SweetTextLight
                     )
                 }
+
+                // Point 6: Mese precedente info in top right
+                if (carryOverEnabled) {
+                    val positiveCarryOver = budgetState.previousMonthBalance > 0
+                    val absCarryOver = Math.abs(budgetState.previousMonthBalance)
+                    Card(
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = SweetSurface),
+                        modifier = Modifier.shadow(1.dp, RoundedCornerShape(12.dp))
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "Mese precedente".loc(),
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 8.sp),
+                                color = SweetTextLight
+                            )
+                            Text(
+                                text = (if (positiveCarryOver) "+" else "-") + currency + " " + absCarryOver.formatCurrency(),
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Black, fontSize = 10.sp),
+                                color = if (positiveCarryOver) PastelMint else PastelRose
+                            )
+                        }
+                    }
+                }
             }
 
             // --- Main Hero Card: Daily Budget ---
@@ -136,6 +161,17 @@ fun HomeScreen(
                     )
                     .padding(24.dp)
             ) {
+                // Point 9: Total remaining budget in top right of card
+                val totalRemaining = budgetState.remainingMonthBudget
+                val isTotalNegative = totalRemaining < 0
+                val absTotalRemaining = Math.abs(totalRemaining)
+                Text(
+                    text = (if (isTotalNegative) "-" else "+") + currency + " " + (if (absTotalRemaining < 0.01) "0,00" else absTotalRemaining.formatCurrency()),
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Black, fontSize = 11.sp),
+                    color = if (isTotalNegative) PastelRose else Color(0xFF1B5E20),
+                    modifier = Modifier.align(Alignment.TopEnd)
+                )
+
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.SpaceBetween
@@ -164,23 +200,6 @@ fun HomeScreen(
                                 color = SweetSecondary,
                                 modifier = Modifier.testTag("today_available_budget")
                             )
-                        }
-
-                        if (carryOverEnabled) {
-                            val positiveCarryOver = budgetState.previousMonthBalance > 0
-                            val absCarryOver = Math.abs(budgetState.previousMonthBalance)
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(Color.White.copy(alpha = 0.40f))
-                                    .padding(horizontal = 10.dp, vertical = 6.dp)
-                            ) {
-                                Text(
-                                    text = if (positiveCarryOver) "+ %s %s mese precedente".loc(currency, absCarryOver.formatCurrency()) else "- %s %s mese precedente".loc(currency, absCarryOver.formatCurrency()),
-                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                    color = SweetSecondary
-                                )
-                            }
                         }
                     }
 
@@ -474,8 +493,8 @@ fun HomeScreen(
                         )
                     }
 
-                    val recentExpensesList = expenses.take(3)
-                    if (recentExpensesList.isEmpty()) {
+                    val recentHistoryList = history.take(5) // Point 1: Last 5 transactions
+                    if (recentHistoryList.isEmpty()) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -492,8 +511,7 @@ fun HomeScreen(
                         Column(
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            recentExpensesList.forEach { exp ->
-                                val cat = categories.find { it.id == exp.categoryId }
+                            recentHistoryList.forEach { item ->
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -510,16 +528,24 @@ fun HomeScreen(
                                                 .background(SweetBackground),
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Text(text = cat?.icon ?: "💸", fontSize = 16.sp)
+                                            val icon = when (item) {
+                                                is HistoryItem.ExpenseItem -> item.category?.icon ?: "💸"
+                                                is HistoryItem.AdjustmentItem -> "⚙️"
+                                            }
+                                            Text(text = icon, fontSize = 16.sp)
                                         }
 
                                         Column {
+                                            val title = when (item) {
+                                                is HistoryItem.ExpenseItem -> if (item.expense.description.isNotEmpty()) item.expense.description else (item.category?.name ?: "Spesa".loc())
+                                                is HistoryItem.AdjustmentItem -> item.adjustment.note
+                                            }
                                             Text(
-                                                text = if (exp.description.isNotEmpty()) exp.description else (cat?.name ?: "Spesa".loc()),
+                                                text = title,
                                                 style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
                                                 color = SweetTextDark
                                             )
-                                            val ldt = LocalDateTime.ofInstant(Instant.ofEpochMilli(exp.timestamp), ZoneId.systemDefault())
+                                            val ldt = LocalDateTime.ofInstant(Instant.ofEpochMilli(item.timestamp), ZoneId.systemDefault())
                                             Text(
                                                 text = "${ldt.format(formatter)}, ${ldt.format(timeFormatter)}",
                                                 style = MaterialTheme.typography.labelSmall,
@@ -528,10 +554,17 @@ fun HomeScreen(
                                         }
                                     }
 
+                                    val amount = when (item) {
+                                        is HistoryItem.ExpenseItem -> item.expense.amount
+                                        is HistoryItem.AdjustmentItem -> item.adjustment.amount
+                                    }
+                                    val isNegative = amount < 0 || item is HistoryItem.ExpenseItem
+                                    val absAmount = Math.abs(amount)
+
                                     Text(
-                                        text = String.format("- %s %s", currency, exp.amount.formatCurrency()),
+                                        text = (if (isNegative) "- " else "+ ") + currency + " " + absAmount.formatCurrency(),
                                         style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Black),
-                                        color = PastelRose
+                                        color = if (isNegative) PastelRose else PastelMint
                                     )
                                 }
                             }

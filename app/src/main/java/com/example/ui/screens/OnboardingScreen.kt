@@ -28,6 +28,7 @@ import com.example.ui.theme.SweetBackground
 import com.example.ui.theme.SweetTextDark
 import com.example.viewmodel.BudgetViewModel
 import com.example.ui.parseCurrency
+import com.example.ui.loc
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -201,7 +202,7 @@ fun OnboardingScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Button(
                 onClick = {
@@ -221,14 +222,15 @@ fun OnboardingScreen(
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = SweetPrimary)
             ) {
-                Text("Inizia ora", modifier = Modifier.padding(8.dp))
+                Text("Inizia ora".loc(), modifier = Modifier.padding(4.dp))
                 Icon(Icons.Default.ArrowForward, contentDescription = null)
             }
 
             TextButton(
-                onClick = { viewModel.skipOnboarding() }
+                onClick = { viewModel.skipOnboarding() },
+                modifier = Modifier.padding(top = 0.dp)
             ) {
-                Text("Salta per ora", color = SweetTextDark.copy(alpha = 0.6f))
+                Text("Salta per ora".loc(), color = SweetTextDark.copy(alpha = 0.6f))
             }
         }
     }

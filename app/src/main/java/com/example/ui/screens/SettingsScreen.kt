@@ -496,7 +496,7 @@ fun SettingsScreen(
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "Attiva per cumulare al budget odierno i risparmi (o debiti) dei giorni e dei mesi precedenti.".loc(),
+                            text = "Attiva per cumulare il risparmio/debito del mese precedente a quello in corso".loc(),
                             style = MaterialTheme.typography.bodySmall,
                             color = SweetTextLight
                         )
@@ -771,17 +771,55 @@ fun SettingsScreen(
             Text("Salva Impostazioni".loc(), fontSize = 14.sp, fontWeight = FontWeight.Black)
         }
 
-        // Reset Onboarding Button
+        // Reset Wizard Button
         Button(
             onClick = {
                 viewModel.resetOnboarding()
-                Toast.makeText(context, "Onboarding resettato. Riavvia l'app o torna alla home.", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "Wizard riavviato. Torna alla home per configurare.".loc(), Toast.LENGTH_LONG).show()
             },
             colors = ButtonDefaults.buttonColors(containerColor = SweetBackground),
             modifier = Modifier.fillMaxWidth(),
             border = BorderStroke(1.dp, SweetCardGlow)
         ) {
-            Text("Ripristina configurazione iniziale (Onboarding)".loc(), color = SweetTextLight, fontSize = 12.sp)
+            Text("Riavvia Wizard".loc(), color = SweetTextLight, fontSize = 12.sp)
+        }
+
+        // Wipe Data Button
+        var showWipeConfirm by remember { mutableStateOf(false) }
+        Button(
+            onClick = { showWipeConfirm = true },
+            colors = ButtonDefaults.buttonColors(containerColor = PastelRose.copy(alpha = 0.1f)),
+            modifier = Modifier.fillMaxWidth(),
+            border = BorderStroke(1.dp, PastelRose.copy(alpha = 0.3f))
+        ) {
+            Text("Resetta l'applicazione".loc(), color = PastelRose, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        }
+
+        if (showWipeConfirm) {
+            AlertDialog(
+                onDismissRequest = { showWipeConfirm = false },
+                title = { Text("Resetta l'applicazione".loc(), fontWeight = FontWeight.Bold) },
+                text = { Text("Attenzione: resettare l'applicazione comporta il ripristino alle impostazioni iniziali e la cancellazione di tutte le informazioni inserite fino a quel momento.".loc()) },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            viewModel.resetApplication()
+                            showWipeConfirm = false
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = PastelRose),
+                        modifier = Modifier.padding(end = 8.dp)
+                    ) {
+                        Text("Conferma".loc(), color = Color.White, fontSize = 12.sp)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showWipeConfirm = false }) {
+                        Text("Annulla".loc())
+                    }
+                },
+                shape = RoundedCornerShape(20.dp),
+                containerColor = SweetSurface
+            )
         }
 
         Spacer(modifier = Modifier.height(24.dp))

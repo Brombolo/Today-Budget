@@ -117,91 +117,87 @@ fun CategoriesScreen(
                             .fillMaxWidth()
                             .shadow(1.dp, RoundedCornerShape(20.dp))
                     ) {
-                        Column(
-                            modifier = Modifier.padding(12.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
+                        Box(modifier = Modifier.fillMaxSize()) {
                             val isPinned = pinnedIds.contains(cat.id)
-                            
-                            // Category Emoji Card with Pin Overlay
-                            Box(
+
+                            IconButton(
+                                onClick = {
+                                    if (!isPinned && pinnedIds.size >= 4) {
+                                        Toast.makeText(context, "Puoi pinnare al massimo 4 categorie".loc(), Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        viewModel.togglePinCategory(cat.id)
+                                    }
+                                },
                                 modifier = Modifier
-                                    .size(54.dp),
-                                contentAlignment = Alignment.Center
+                                    .size(32.dp)
+                                    .align(Alignment.TopEnd)
+                                    .padding(4.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isPinned) SweetPrimary else SweetCardGlow)
                             ) {
+                                Icon(
+                                    imageVector = if (isPinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
+                                    contentDescription = "Pin",
+                                    tint = if (isPinned) Color.White else SweetTextLight,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                // Category Emoji Card
                                 Box(
                                     modifier = Modifier
-                                        .fillMaxSize()
+                                        .size(54.dp)
                                         .clip(CircleShape)
                                         .background(SweetPrimaryLight),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(text = cat.icon, fontSize = 28.sp)
                                 }
-                                
-                                IconButton(
-                                    onClick = {
-                                        if (!isPinned && pinnedIds.size >= 4) {
-                                            Toast.makeText(context, "Puoi pinnare al massimo 4 categorie", Toast.LENGTH_SHORT).show()
-                                        } else {
-                                            viewModel.togglePinCategory(cat.id)
-                                        }
-                                    },
-                                    modifier = Modifier
-                                        .size(24.dp)
-                                        .align(Alignment.TopEnd)
-                                        .offset(x = 4.dp, y = (-4).dp)
-                                        .clip(CircleShape)
-                                        .background(if (isPinned) SweetPrimary else SweetCardGlow)
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                Text(
+                                    text = cat.name,
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = SweetTextDark,
+                                    maxLines = 1
+                                )
+
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                // Actions
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceEvenly
                                 ) {
-                                    Icon(
-                                        imageVector = if (isPinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
-                                        contentDescription = "Pin",
-                                        tint = if (isPinned) Color.White else SweetTextLight,
-                                        modifier = Modifier.size(12.dp)
-                                    )
-                                }
-                            }
+                                    IconButton(
+                                        onClick = { selectedCategoryForEdit = cat },
+                                        modifier = Modifier.size(34.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = "Modifica".loc(),
+                                            tint = SweetPrimary,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
 
-                            Spacer(modifier = Modifier.height(10.dp))
-
-                            Text(
-                                text = cat.name,
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                color = SweetTextDark,
-                                maxLines = 1
-                            )
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            // Actions
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceEvenly
-                            ) {
-                                IconButton(
-                                    onClick = { selectedCategoryForEdit = cat },
-                                    modifier = Modifier.size(34.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Edit,
-                                        contentDescription = "Modifica".loc(),
-                                        tint = SweetPrimary,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-
-                                IconButton(
-                                    onClick = { showDeleteConfirmDialog = cat },
-                                    modifier = Modifier.size(34.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Delete,
-                                        contentDescription = "Elimina".loc(),
-                                        tint = PastelRose,
-                                        modifier = Modifier.size(16.dp)
-                                    )
+                                    IconButton(
+                                        onClick = { showDeleteConfirmDialog = cat },
+                                        modifier = Modifier.size(34.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = "Elimina".loc(),
+                                            tint = PastelRose,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
                                 }
                             }
                         }

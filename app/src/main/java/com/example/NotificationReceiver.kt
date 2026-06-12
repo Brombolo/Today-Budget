@@ -38,9 +38,12 @@ class NotificationReceiver : BroadcastReceiver() {
                         showNotification(
                             context,
                             id = 101,
-                            title = "Registra le tue spese! 📝",
-                            text = "Non dimenticarti di annotare le spese di oggi per calcolare lo spendibile di domani."
+                            title = "Promemoria Spese! 📝",
+                            text = "Non dimenticarti di annotare le spese della giornata."
                         )
+                        // Reschedule for tomorrow if using exact alarm (since setExact is one-shot)
+                        val dailyTime = dao.getSettingValue("push_daily_time") ?: "20:00"
+                        NotificationScheduler.scheduleDailyNotification(context, true, dailyTime)
                     }
                 }
                 "weekly_monthly" -> {
@@ -50,7 +53,7 @@ class NotificationReceiver : BroadcastReceiver() {
                             context,
                             id = 102,
                             title = "Riepilogo Spese 📊",
-                            text = "Dai un'occhiata all'andamento del tuo budget in corso nella sezione Statistiche."
+                            text = "Dai un'occhiata all'andamento del tuo budget."
                         )
                     }
                 }
@@ -60,8 +63,8 @@ class NotificationReceiver : BroadcastReceiver() {
                         showNotification(
                             context,
                             id = 103,
-                            title = "Nuovo Mese Iniziato 📅",
-                            text = "Oggi inizia il tuo ciclo di budget! Accedi a Today Budget per confermare o modificare la cifra."
+                            title = "Budget Aggiornato 📅",
+                            text = "Oggi riparte il conteggio del tuo budget."
                         )
                     }
                 }

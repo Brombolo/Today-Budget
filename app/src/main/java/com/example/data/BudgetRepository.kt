@@ -9,6 +9,7 @@ class BudgetRepository(private val budgetDao: BudgetDao) {
     val categoriesFlow: Flow<List<Category>> = budgetDao.getAllCategoriesFlow()
     val expensesFlow: Flow<List<Expense>> = budgetDao.getAllExpensesFlow()
     val adjustmentsFlow: Flow<List<Adjustment>> = budgetDao.getAllAdjustmentsFlow()
+    val monthlyBudgetsFlow: Flow<List<MonthlyBudget>> = budgetDao.getAllMonthlyBudgetsFlow()
 
     // Sync state
     suspend fun getAllCategories(): List<Category> = budgetDao.getAllCategories()
@@ -49,5 +50,20 @@ class BudgetRepository(private val budgetDao: BudgetDao) {
 
     suspend fun saveSetting(key: String, value: String) {
         budgetDao.insertSetting(Setting(key, value))
+    }
+
+    // Monthly Budgets
+    suspend fun getAllMonthlyBudgets(): List<MonthlyBudget> = budgetDao.getAllMonthlyBudgets()
+    suspend fun saveMonthlyBudget(cycleStart: String, budget: Double) {
+        budgetDao.insertMonthlyBudget(MonthlyBudget(cycleStart, budget))
+    }
+
+    // App Reset
+    suspend fun resetApplication() {
+        budgetDao.deleteAllCategories()
+        budgetDao.deleteAllExpenses()
+        budgetDao.deleteAllAdjustments()
+        budgetDao.deleteAllSettings()
+        budgetDao.deleteAllMonthlyBudgets()
     }
 }

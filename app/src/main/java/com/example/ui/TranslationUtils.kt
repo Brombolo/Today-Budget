@@ -820,11 +820,137 @@ object Trans {
             "es" to "Seleccionar Icono / Emoji",
             "it" to "Seleziona Icona / Emoji"
         ),
-        "Inserisci un nome valido." to mapOf(
-            "en" to "Please enter a valid name.",
-            "fr" to "Veuillez saisir un nom valide.",
-            "es" to "Por favor ingrese un nombre válido.",
-            "it" to "Inserisci un nome valido."
+        "Seleziona solo l'ora (max 11:00)" to mapOf(
+            "en" to "Select hour only (max 11:00)",
+            "fr" to "Sélectionnez l'heure uniquement (max 11:00)",
+            "es" to "Selecciona solo la hora (máx. 11:00)",
+            "it" to "Seleziona solo l'ora (max 11:00)"
+        ),
+        "Inizia ora" to mapOf(
+            "en" to "Start now",
+            "fr" to "Commencer maintenant",
+            "es" to "Empezar ahora",
+            "it" to "Inizia ora"
+        ),
+        "Salta per ora" to mapOf(
+            "en" to "Skip for now",
+            "fr" to "Passer pour l'instant",
+            "es" to "Saltar por ahora",
+            "it" to "Salta per ora"
+        ),
+        "Riavvia Wizard" to mapOf(
+            "en" to "Restart Wizard",
+            "fr" to "Redémarrer l'assistant",
+            "es" to "Reiniciar asistente",
+            "it" to "Riavvia Wizard"
+        ),
+        "Wizard riavviato. Torna alla home per configurare." to mapOf(
+            "en" to "Wizard restarted. Go back home to configure.",
+            "fr" to "Assistant redémarré. Retournez à l'accueil per configurer.",
+            "es" to "Asistente reiniciado. Vuelve al inicio para configurar.",
+            "it" to "Wizard riavviato. Torna alla home per configurare."
+        ),
+        "Resetta l'applicazione" to mapOf(
+            "en" to "Reset application",
+            "fr" to "Réinitialiser l'application",
+            "es" to "Reiniciar aplicación",
+            "it" to "Resetta l'applicazione"
+        ),
+        "Attenzione: resettare l'applicazione comporta il ripristino alle impostazioni iniziali e la cancellazione di tutte le informazioni inserite fino a quel momento." to mapOf(
+            "en" to "Warning: resetting the application will restore initial settings and delete all entered information.",
+            "fr" to "Attention : la réinitialisation de l'application restaurera i parametri iniziali et supprimera toutes les informations saisies.",
+            "es" to "Atención: reiniciar la aplicación restablecerà los ajustes iniciales y eliminará toda la información introducida.",
+            "it" to "Attenzione: resettare l'applicazione comporta il ripristino alle impostazioni iniziali e la cancellazione di tutte le informazioni inserite fino a quel momento."
+        ),
+        "Conferma" to mapOf(
+            "en" to "Confirm",
+            "fr" to "Confirmer",
+            "es" to "Confirmar",
+            "it" to "Conferma"
+        ),
+        "Lingua Applicazione" to mapOf(
+            "en" to "App Language",
+            "fr" to "Langue de l'application",
+            "es" to "Idioma de la aplicación",
+            "it" to "Lingua Applicazione"
+        ),
+        "Seleziona Lingua" to mapOf(
+            "en" to "Select Language",
+            "fr" to "Sélectionner la langue",
+            "es" to "Seleccionar idioma",
+            "it" to "Seleziona Lingua"
+        ),
+        "Onboarding resettato. Riavvia l'app o torna alla home." to mapOf(
+            "en" to "Onboarding reset. Restart the app or return home.",
+            "fr" to "Onboarding réinitialisé. Redémarrez l'appli ou retournez à l'accueil.",
+            "es" to "Onboarding reiniciado. Reinicia la aplicación o vuelve al inicio.",
+            "it" to "Onboarding resettato. Riavvia l'app o torna alla home."
+        ),
+        "Budget" to mapOf(
+            "en" to "Budget",
+            "fr" to "Budget",
+            "es" to "Presupuesto",
+            "it" to "Budget"
+        ),
+        "Mese precedente" to mapOf(
+            "en" to "Previous month",
+            "fr" to "Mois précédent",
+            "es" to "Mes anterior",
+            "it" to "Mese precedente"
+        ),
+        "Budget superato!" to mapOf(
+            "en" to "Budget exceeded!",
+            "fr" to "Budget dépassé !",
+            "es" to "¡Presupuesto superado!",
+            "it" to "Budget superato!"
+        ),
+        "Puoi pinnare al massimo 4 categorie" to mapOf(
+            "en" to "You can pin up to 4 categories",
+            "fr" to "Vous pouvez épingler jusqu'à 4 catégories",
+            "es" to "Puedes fijar hasta 4 categorías",
+            "it" to "Puoi pinnare al massimo 4 categorie"
+        ),
+        "Attiva per cumulare il risparmio/debito del mese precedente a quello in corso" to mapOf(
+            "en" to "Activate to carry over the previous month's savings/debt to the current one",
+            "fr" to "Activer pour reporter l'épargne/dette du mois précédent sur le mois en cours",
+            "es" to "Activar para acumular el ahorro/deuda del mes anterior al actual",
+            "it" to "Attiva per cumulare il risparmio/debito del mese precedente a quello in corso"
+        ),
+        "Oggi riparte il conteggio del tuo budget." to mapOf(
+            "en" to "Your budget counting restarts today.",
+            "fr" to "Le décompte de votre budget redémarre aujourd'hui.",
+            "es" to "Hoy se reinicia el conteo de tu presupuesto.",
+            "it" to "Oggi riparte il conteggio del tuo budget."
+        ),
+        "Mese Corrente" to mapOf(
+            "en" to "Current Month",
+            "fr" to "Mois actuel",
+            "es" to "Mes actual",
+            "it" to "Mese Corrente"
+        ),
+        "Le statistiche storiche saranno attive dal prossimo mese." to mapOf(
+            "en" to "Historical statistics will be active from next month.",
+            "fr" to "Les statistiques historiques saranno actives dès le mois prochain.",
+            "es" to "Las estadísticas históricas estarán activas a partir del prossimo mes.",
+            "it" to "Le statistiche storiche saranno attive dal prossimo mese."
+        ),
+        "Spese" to mapOf(
+            "en" to "Expenses",
+            "fr" to "Dépenses",
+            "es" to "Gastos",
+            "it" to "Spese"
+        ),
+        "Media: " to mapOf(
+            "en" to "Avg: ",
+            "fr" to "Moy: ",
+            "es" to "Prom: ",
+            "it" to "Media: "
+        ),
+        "Verde = Risparmio | Rosso = Sforamento" to mapOf(
+            "en" to "Green = Savings | Red = Overspend",
+            "fr" to "Vert = Épargne | Rouge = Dépassement",
+            "es" to "Verde = Ahorro | Rojo = Sforamiento",
+            "it" to "Verde = Risparmio | Rosso = Sforamento"
         )
     )
 

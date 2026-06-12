@@ -72,4 +72,29 @@ interface BudgetDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSetting(setting: Setting)
+
+    // --- MONTHLY BUDGETS ---
+    @Query("SELECT * FROM monthly_budgets")
+    suspend fun getAllMonthlyBudgets(): List<MonthlyBudget>
+
+    @Query("SELECT * FROM monthly_budgets")
+    fun getAllMonthlyBudgetsFlow(): Flow<List<MonthlyBudget>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMonthlyBudget(monthlyBudget: MonthlyBudget)
+
+    @Query("DELETE FROM categories")
+    suspend fun deleteAllCategories()
+
+    @Query("DELETE FROM expenses")
+    suspend fun deleteAllExpenses()
+
+    @Query("DELETE FROM adjustments")
+    suspend fun deleteAllAdjustments()
+
+    @Query("DELETE FROM settings")
+    suspend fun deleteAllSettings()
+
+    @Query("DELETE FROM monthly_budgets")
+    suspend fun deleteAllMonthlyBudgets()
 }
