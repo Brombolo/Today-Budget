@@ -35,7 +35,10 @@ val PresetEmojis = listOf(
     "🐈", "🍺", "🍷", "📱", "💻", "🎬", "🎫", "🎸",
     "⚽", "🏋️", "🧘", "🧗", "🏕️", "🧹", "🔨", "🛋️",
     "🔌", "📶", "🚰", "💈", "💄", "💍", "💎", "🩺",
-    "🦷", "🩹", "🏛️", "💳", "🌾", "💼", "✉️", "🎯"
+    "🦷", "🩹", "🏛️", "💳", "🌾", "💼", "✉️", "🎯",
+    "🐟", "🍣", "🍗", "🥐", "🍞", "🍩", "🍰", "🍎",
+    "🥦", "🥚", "🥛", "⚡", "💧", "⛽", "🗑️", "👗",
+    "👟", "🚲", "🧼", "📰", "💇‍♂️", "🧴", "🧸", "🕯️"
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -45,13 +48,27 @@ fun AddEditExpenseDialog(
     expenseToEdit: Expense? = null,
     initialCategoryId: Int? = null,
     currencySymbol: String = "€",
+    dayStartHour: Int = 0,
     onDismiss: () -> Unit,
     onSave: (amount: Double, categoryId: Int, description: String, timestamp: Long) -> Unit
 ) {
-    var amountStr by remember { mutableStateOf(expenseToEdit?.amount?.toString() ?: "") }
+    var amountStr by remember { mutableStateOf(expenseToEdit?.amount?.let { String.format(java.util.Locale.ITALY, "%.2f", it) } ?: "") }
     var description by remember { mutableStateOf(expenseToEdit?.description ?: "") }
     var selectedCategoryId by remember { mutableStateOf(expenseToEdit?.categoryId ?: initialCategoryId ?: categories.firstOrNull()?.id ?: 0) }
     var errorMessage by remember { mutableStateOf("") }
+
+    val context = androidx.compose.ui.platform.LocalContext.current
+    
+    // Date/Time State
+    val initialTimestamp = expenseToEdit?.timestamp ?: System.currentTimeMillis()
+    var selectedDateTime by remember { mutableStateOf(java.time.LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(initialTimestamp), java.time.ZoneId.systemDefault())) }
+
+    val dateFormatter = java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy", java.util.Locale.ITALY)
+    val timeFormatter = java.time.format.DateTimeFormatter.ofPattern("HH:mm", java.util.Locale.ITALY)
+
+    fun isToday(date: java.time.LocalDate): Boolean {
+        return date.isEqual(java.time.LocalDate.now())
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -68,12 +85,12 @@ fun AddEditExpenseDialog(
                 OutlinedTextField(
                     value = amountStr,
                     onValueChange = { 
-                        if (it.isEmpty() || it.toDoubleOrNull() != null || it.endsWith(".")) {
+                        if (it.isEmpty() || it.replace(",", ".").toDoubleOrNull() != null || it.endsWith(".") || it.endsWith(",")) {
                             amountStr = it 
                         }
                     },
                     label = { Text("Importo ($currencySymbol)") },
-                    placeholder = { Text("0.00") },
+                    placeholder = { Text("0,00") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
@@ -82,6 +99,72 @@ fun AddEditExpenseDialog(
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
+
+                // Date and Time Pickers
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Date Button
+                    OutlinedButton(
+                        onClick = {
+                            val dialog = android.app.DatePickerDialog(
+                                context,
+                                { _, year, month, dayOfMonth ->
+                                    val newDate = java.time.LocalDate.of(year, month + 1, dayOfMonth)
+                                    val newDateTime = selectedDateTime.with(newDate)
+                                    
+                                    // Point 1 Logic: if new expense, auto-adjust time
+                                    if (expenseToEdit == null) {
+                                        selectedDateTime = if (isToday(newDate)) {
+                                            val now = java.time.LocalDateTime.now()
+                                            newDateTime.withHour(now.hour).withMinute(now.minute)
+                                        } else {
+                                            newDateTime.withHour(dayStartHour).withMinute(0)
+                                        }
+                                    } else {
+                                        // Point 2 Logic: for edit, don't auto-adjust time
+                                        selectedDateTime = newDateTime
+                                    }
+                                },
+                                selectedDateTime.year,
+                                selectedDateTime.monthValue - 1,
+                                selectedDateTime.dayOfMonth
+                            )
+                            dialog.show()
+                        },
+                        modifier = Modifier.weight(1.3f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("Data", style = MaterialTheme.typography.labelSmall, color = SweetTextLight)
+                            Text(selectedDateTime.format(dateFormatter), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = SweetTextDark)
+                        }
+                    }
+
+                    // Time Button
+                    OutlinedButton(
+                        onClick = {
+                            val dialog = android.app.TimePickerDialog(
+                                context,
+                                { _, hour, minute ->
+                                    selectedDateTime = selectedDateTime.withHour(hour).withMinute(minute)
+                                },
+                                selectedDateTime.hour,
+                                selectedDateTime.minute,
+                                true
+                            )
+                            dialog.show()
+                        },
+                        modifier = Modifier.weight(0.7f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("Ora", style = MaterialTheme.typography.labelSmall, color = SweetTextLight)
+                            Text(selectedDateTime.format(timeFormatter), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = SweetTextDark)
+                        }
+                    }
+                }
 
                 // Description Field
                 OutlinedTextField(
@@ -168,7 +251,7 @@ fun AddEditExpenseDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val amt = amountStr.toDoubleOrNull()
+                    val amt = amountStr.replace(",", ".").toDoubleOrNull()
                     if (amt == null || amt <= 0.0) {
                         errorMessage = "Inserisci un importo maggiore di zero."
                         return@Button
@@ -180,7 +263,7 @@ fun AddEditExpenseDialog(
                         amt,
                         selectedCategoryId,
                         description,
-                        expenseToEdit?.timestamp ?: System.currentTimeMillis()
+                        selectedDateTime.atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
                     )
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = SweetPrimary)

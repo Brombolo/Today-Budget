@@ -62,6 +62,7 @@ fun HomeScreen(
     val userName by viewModel.userName.collectAsState()
     val carryOverEnabled by viewModel.carryOverEnabled.collectAsState()
     val pinnedIds by viewModel.pinnedCategoryIds.collectAsState()
+    val dayStartHour by viewModel.dayStartHour.collectAsState()
 
     var showExpenseDialog by remember { mutableStateOf(false) }
     var showAdjustDialog by remember { mutableStateOf(false) }
@@ -613,6 +614,7 @@ fun HomeScreen(
             categories = categories,
             initialCategoryId = quickActionCategoryId,
             currencySymbol = currency,
+            dayStartHour = dayStartHour,
             onDismiss = { 
                 showExpenseDialog = false
                 quickActionCategoryId = null

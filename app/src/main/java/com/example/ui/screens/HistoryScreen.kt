@@ -43,6 +43,7 @@ fun HistoryScreen(
     val history by viewModel.history.collectAsState(initial = emptyList())
     val categories by viewModel.categories.collectAsState(initial = emptyList())
     val currency by viewModel.currencySymbol.collectAsState()
+    val dayStartHour by viewModel.dayStartHour.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
     var selectedExpenseForEdit by remember { mutableStateOf<Expense?>(null) }
@@ -259,6 +260,7 @@ fun HistoryScreen(
             categories = categories,
             expenseToEdit = exp,
             currencySymbol = currency,
+            dayStartHour = dayStartHour,
             onDismiss = { selectedExpenseForEdit = null },
             onSave = { amount, categoryId, desc, ts ->
                 viewModel.updateExpense(exp.id, amount, categoryId, desc, ts)
